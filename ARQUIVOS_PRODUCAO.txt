@@ -1,0 +1,114 @@
+📋 LISTA EXATA DE ARQUIVOS PARA PRODUÇÃO
+
+═══════════════════════════════════════════════════════════════════
+📦 BACKEND (para fazer upload no servidor)
+═══════════════════════════════════════════════════════════════════
+
+ARQUIVOS ESSENCIAIS (7 arquivos):
+
+1. backend/src/server.js
+2. backend/src/database.js
+3. backend/src/routes/agenda.js
+4. backend/src/routes/profissionais.js
+5. backend/src/routes/servicos.js
+6. backend/src/routes/dashboard.js
+7. backend/package.json
+
+BANCO DE DADOS (1 arquivo):
+8. backend/data/cabeleireiro.db (será criado automaticamente)
+
+═══════════════════════════════════════════════════════════════════
+🎨 FRONTEND (após build)
+═══════════════════════════════════════════════════════════════════
+
+Execute: npm run build
+
+Isso gera a pasta "dist/" com todos os arquivos otimizados.
+Upload a pasta inteira "frontend/dist/" para seu servidor web.
+
+ARQUIVOS GERADOS AUTOMATICAMENTE NA PASTA DIST:
+- index.html
+- assets/index-xxxxx.js (minificado)
+- assets/index-xxxxx.css (minificado)
+
+═══════════════════════════════════════════════════════════════════
+🚀 PROCEDIMENTO DE DEPLOYMENT
+═══════════════════════════════════════════════════════════════════
+
+PASSO 1: Preparar Backend
+───────────────────────────
+├─ Crie pasta em seu servidor: /apps/cabeleireiro-api/
+├─ Crie subpastas: src/ e data/
+├─ Upload dos 7 arquivos .js e package.json na pasta src/
+├─ Execute: npm install (no servidor)
+├─ Execute: npm start
+
+PASSO 2: Preparar Frontend
+──────────────────────────
+├─ Local: npm run build
+├─ Crie pasta em seu servidor web: /apps/cabeleireiro/
+├─ Upload da pasta inteira frontend/dist/* 
+├─ Configure seu servidor web para servir index.html
+
+PASSO 3: Testar
+──────────────
+├─ Acesse: http://seu-dominio.com/apps/cabeleireiro/
+├─ Verifique se API está respondendo: http://seu-dominio.com/api/health
+├─ Teste agendamento, preços e dashboard
+
+═══════════════════════════════════════════════════════════════════
+📊 TOTAL DE ARQUIVOS
+═══════════════════════════════════════════════════════════════════
+
+Backend:        7 arquivos (.js + package.json)
+Frontend (dist): ~3-5 arquivos (index.html + assets minificados)
+Banco de dados: 1 arquivo (SQLite)
+
+TOTAL: ~12 arquivos principais para produção
+
+═══════════════════════════════════════════════════════════════════
+🔐 VARIÁVEIS DE AMBIENTE (opcional, em produção)
+═══════════════════════════════════════════════════════════════════
+
+Crie arquivo backend/.env:
+
+PORT=3001
+NODE_ENV=production
+DATABASE_PATH=./data/cabeleireiro.db
+
+═══════════════════════════════════════════════════════════════════
+📝 ATUALIZAÇÕES FUTURAS
+═══════════════════════════════════════════════════════════════════
+
+Quando fizer alterações, SEMPRE atualize:
+
+BACKEND:
+├─ Arquivos modificados em backend/src/
+├─ Execute: npm start no servidor
+
+FRONTEND:
+├─ Arquivos modificados em frontend/src/
+├─ Execute: npm run build localmente
+├─ Upload da nova pasta frontend/dist/
+
+═══════════════════════════════════════════════════════════════════
+✅ CHECKLIST ANTES DE DEPLOY
+═══════════════════════════════════════════════════════════════════
+
+[ ] Backup do banco de dados feito
+[ ] Variáveis de ambiente configuradas
+[ ] CORS está correto apontando para seu domínio
+[ ] SSL/HTTPS ativo
+[ ] Firewalls permitem conexões na porta 3001
+[ ] Node.js v18+ instalado no servidor
+[ ] npm instalado no servidor
+[ ] Pasta /data/ existe e tem permissões de escrita
+[ ] Teste de agendamento funcionando
+[ ] Dashboard carregando corretamente
+[ ] Agendas listando sem erros
+
+═══════════════════════════════════════════════════════════════════
+
+Perguntas? Revise README.md e PRODUCAO.md
+
+Boa sorte com seu deployment! 🚀

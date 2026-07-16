@@ -1,0 +1,203 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║   🏪 BARBEARIA PREMIUM - GUIA VISUAL DO SISTEMA                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 📊 PÁGINA: DASHBOARD                                                     ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+   [📊 Dashboard]  [📅 Agenda]  [💰 Preços]        [Hoje] [Este Mês]
+   
+   ┌─────────────────────────────────────────────────────────────────┐
+   │ 💰 Faturamento          📝 Agendamentos      💵 Ticket Médio    │
+   │ R$ 1.200,00             15                    R$ 80,00           │
+   │ (verde)                 (azul)                (roxo)             │
+   └─────────────────────────────────────────────────────────────────┘
+   
+   ┌─────────────────────────────┐  ┌─────────────────────────────┐
+   │ ✂️ Por Serviço              │  │ 👨‍💼 Por Profissional         │
+   │                             │  │                             │
+   │ Corte Premium: R$ 480       │  │ Carlos Silva: R$ 500        │
+   │ (2 serviços)                │  │ (4 atendimentos)            │
+   │                             │  │                             │
+   │ Barba + Corte: R$ 350       │  │ João Santos: R$ 400         │
+   │ (1 serviço)                 │  │ (3 atendimentos)            │
+   │                             │  │                             │
+   │ Pintura: R$ 240             │  │ Pedro Oliveira: R$ 300      │
+   │ (1 serviço)                 │  │ (2 atendimentos)            │
+   │                             │  │                             │
+   └─────────────────────────────┘  └─────────────────────────────┘
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 📅 PÁGINA: AGENDA                                                        ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+   [📊 Dashboard]  [📅 Agenda]  [💰 Preços]
+   
+   ┌─────────────────────────────────────────────────────────────────┐
+   │ 📅 Novo Agendamento                                             │
+   ├─────────────────────────────────────────────────────────────────┤
+   │                                                                 │
+   │ [Nome do Cliente...............]  [Profissional▼]               │
+   │                                                                 │
+   │ [Serviço▼]                       [Data e Hora....]             │
+   │                                                                 │
+   │                         [✅ Agendar]                            │
+   │                                                                 │
+   └─────────────────────────────────────────────────────────────────┘
+   
+   ┌─────────────────────────────────────────────────────────────────┐
+   │ 📋 Agendamentos                                                 │
+   ├─────────────────────────────────────────────────────────────────┤
+   │                                                                 │
+   │ Cliente: João Silva        👨‍💼: Carlos Silva                      │
+   │ Serviço: Corte Premium     [✓ Confirmar] [✕ Cancelar]          │
+   │ 📅 Hoje 14:30             💰 R$ 60,00                           │
+   │                                                                 │
+   │ ─────────────────────────────────────────────────────────────   │
+   │                                                                 │
+   │ Cliente: Pedro Costa       👨‍💼: João Santos                       │
+   │ Serviço: Barba + Corte     [✓ Confirmar] [✕ Cancelar]          │
+   │ 📅 Hoje 15:00             💰 R$ 70,00                           │
+   │                                                                 │
+   │ ─────────────────────────────────────────────────────────────   │
+   │                                                                 │
+   │ Cliente: Andre Luz         👨‍💼: Pedro Oliveira                    │
+   │ Serviço: Pintura           ✓ Confirmado                         │
+   │ 📅 Hoje 16:30             💰 R$ 80,00                           │
+   │                                                                 │
+   └─────────────────────────────────────────────────────────────────┘
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 💰 PÁGINA: PREÇOS                                                        ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+   [📊 Dashboard]  [📅 Agenda]  [💰 Preços]  [➕ Novo Serviço]
+   
+   ┌─────────────────────────────────────────────────────────────────┐
+   │ 💰 Tabela de Preços                                             │
+   ├─────┬──────────────────┬──────────┬────────────────────────────┤
+   │  #  │ Serviço          │ Duração  │ Preço                      │
+   ├─────┼──────────────────┼──────────┼────────────────────────────┤
+   │  1  │ Corte Premium    │ ⏱️ 45min │ [R$ 60,00]                 │
+   │  2  │ Pintura Cabelo   │ ⏱️ 60min │ [R$ 80,00]                 │
+   │  3  │ Barba + Corte    │ ⏱️ 60min │ [R$ 70,00]                 │
+   │  4  │ Corte Clássico   │ ⏱️ 30min │ [R$ 40,00]                 │
+   │  5  │ Barba Completa   │ ⏱️ 30min │ [R$ 35,00]                 │
+   │  6  │ Barba Desenhada  │ ⏱️ 20min │ [R$ 25,00]                 │
+   └─────┴──────────────────┴──────────┴────────────────────────────┘
+   
+   Total: 6 serviços     Preço médio: R$ 51,67
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ⚙️ FLUXO DE DADOS                                                         ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+   ┌───────────────────┐
+   │  React Frontend   │
+   │   (Vite/npm)      │  ← Port 3000
+   └─────────┬─────────┘
+             │
+             │ HTTP Requests
+             │ (Axios)
+             ↓
+   ┌──────────────────────────┐
+   │  Express Backend API     │
+   │  (Node.js/npm)           │  ← Port 3001
+   └─────────┬────────────────┘
+             │
+             │ SQL Queries
+             ↓
+   ┌──────────────────────────┐
+   │  SQLite Database         │
+   │  (cabeleireiro.db)       │
+   └──────────────────────────┘
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 🔄 CICLO DE VIDA DO AGENDAMENTO                                          ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+   1. CRIAR AGENDAMENTO
+      ├─ Usuário preenche: Cliente, Profissional, Serviço, Data/Hora
+      ├─ Sistema verifica conflito de horário
+      ├─ Sistema obtém preço do serviço
+      └─ Agendamento é criado com status "agendado"
+   
+   2. CONFIRMAR AGENDAMENTO
+      ├─ Usuário clica [✓ Confirmar] na agenda
+      ├─ Status muda para "confirmado"
+      └─ Agendamento aparece no dashboard
+   
+   3. CANCELAR AGENDAMENTO
+      ├─ Usuário clica [✕ Cancelar] na agenda
+      ├─ Status muda para "cancelado"
+      └─ Não conta mais para relatórios
+   
+   4. VISUALIZAR LUCROS
+      ├─ Dashboard filtra agendamentos confirmados
+      ├─ Agrupa por serviço (quanto cada um faturou)
+      ├─ Agrupa por profissional (quanto cada um ganhou)
+      └─ Mostra ticket médio
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 🗂️ BANCO DE DADOS                                                         ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+   TABELA: PROFISSIONAIS
+   ┌─────┬─────────────────┬───────────────────┐
+   │ id  │ nome            │ especialidade     │
+   ├─────┼─────────────────┼───────────────────┤
+   │ 1   │ Carlos Silva    │ Corte Premium     │
+   │ 2   │ João Santos     │ Barba & Estilo    │
+   │ 3   │ Pedro Oliveira  │ Coloração         │
+   └─────┴─────────────────┴───────────────────┘
+
+   TABELA: SERVICOS
+   ┌─────┬──────────────────┬────────┬───────┐
+   │ id  │ nome             │ preco  │ duracao│
+   ├─────┼──────────────────┼────────┼───────┤
+   │ 1   │ Corte Clássico   │ 40,00  │ 30    │
+   │ 2   │ Corte Premium    │ 60,00  │ 45    │
+   │ 3   │ Barba Completa   │ 35,00  │ 30    │
+   │ 4   │ Barba + Corte    │ 70,00  │ 60    │
+   │ 5   │ Pintura Cabelo   │ 80,00  │ 60    │
+   │ 6   │ Barba Desenhada  │ 25,00  │ 20    │
+   └─────┴──────────────────┴────────┴───────┘
+
+   TABELA: AGENDAMENTOS
+   ┌─────┬──────────────┬────────┬──────┬─────────────────┬───────────┐
+   │ id  │ cliente_nome │ prof_id│ serv │ data_hora       │ status    │
+   ├─────┼──────────────┼────────┼──────┼─────────────────┼───────────┤
+   │ 1   │ João Silva   │ 1      │ 2    │ 2026-07-14 14:30│ confirmado│
+   │ 2   │ Pedro Costa  │ 2      │ 4    │ 2026-07-14 15:00│ confirmado│
+   │ 3   │ Andre Luz    │ 3      │ 5    │ 2026-07-14 16:30│ confirmado│
+   └─────┴──────────────┴────────┴──────┴─────────────────┴───────────┘
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 🚀 ROADMAP FUTURO (SUGESTÕES)                                            ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+   FASE 1 (Atual): ✅ Completo
+   └─ Agenda, Preços, Dashboard
+   
+   FASE 2 (Fácil de adicionar):
+   ├─ Login de usuários
+   ├─ Senhas para profissionais
+   ├─ Histórico de agendamentos antigos
+   └─ Backup automático do banco
+   
+   FASE 3 (Médio):
+   ├─ Notificações por WhatsApp
+   ├─ QR code para auto-agendamento
+   ├─ Fotos de antes/depois
+   └─ Avaliações de clientes
+   
+   FASE 4 (Avançado):
+   ├─ App mobile (React Native)
+   ├─ Pagamento integrado
+   ├─ Sistema de fidelidade
+   └─ Inteligência Artificial (previsão de demanda)
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║  Perguntas? Consulte README.md, COMECE.md ou PRODUCAO.md                  ║
+╚════════════════════════════════════════════════════════════════════════════╝

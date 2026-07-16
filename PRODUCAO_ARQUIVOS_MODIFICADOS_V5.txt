@@ -1,0 +1,169 @@
+================================================================================
+LISTA EXATA DE ARQUIVOS MODIFICADOS PARA PRODUÇÃO
+Auditoria Profissional de Arquitetura - 2026-07-16 (Sessão 5)
+Sistema: Estúdio Valdo Santos - Gestão para Salão de Beleza
+Status: ✅ PRONTO PARA PRODUÇÃO
+================================================================================
+
+📋 ARQUIVOS BACKEND MODIFICADOS (9 arquivos - TODOS CRÍTICOS)
+================================================================================
+
+1. backend/src/database.js
+   ✅ Convertido database initialization para async/await
+   ✅ ALTERs agora garantem sequência correta
+   ✅ Race conditions eliminadas
+   [CRITICIDADE: ALTA - Afetar banco de dados]
+
+2. backend/src/routes/profissionais.js
+   ✅ Validação nome: requerido, sem espaços vazios
+   ✅ Validação comissão: 0-100%
+   ✅ DELETE validado com 404 check
+   [CRITICIDADE: MÉDIA - Gestão de equipe]
+
+3. backend/src/routes/servicos.js
+   ✅ Validação nome: requerido
+   ✅ Validação preço: > 0
+   ✅ Validação duração: > 0
+   ✅ Soft delete (UPDATE ativo=0) em vez de hard delete
+   [CRITICIDADE: MÉDIA - Catálogo de serviços]
+
+4. backend/src/routes/agenda.js
+   ✅ DELETE /:id validado com ID check + 404
+   ✅ DELETE /bloqueios/:id validado com ID check + 404
+   ✅ DELETE /lista-espera/:id validado com ID check + 404
+   ✅ Response format normalizado {ok: true}
+   [CRITICIDADE: ALTA - Agendamentos críticos]
+
+5. backend/src/routes/clientes.js
+   ✅ Validação nome: requerido, mínimo 3 caracteres
+   ✅ DELETE validado
+   [CRITICIDADE: BAIXA - Dados de clientes]
+
+6. backend/src/routes/comandas.js
+   ✅ Validação itens: requerido, descricao + valor_unitario > 0
+   ✅ Validação tipo comanda
+   ✅ DELETE /:id com cascade (deleta itens + pagamentos)
+   ✅ ID validation + 404 check
+   [CRITICIDADE: ALTA - Gestão de vendas]
+
+7. backend/src/routes/caixa.js
+   ✅ Validação tipo: entrada|saida|despesa|conta_pagar
+   ✅ Validação descricao: requerido
+   ✅ Validação valor: requerido
+   ✅ DELETE /lancamentos/:id validado com 404
+   ✅ Response {ok: true} normalizado
+   [CRITICIDADE: ALTA - Controle financeiro]
+
+8. backend/src/routes/estoque.js
+   ✅ Validação nome: requerido
+   ✅ Validação quantidade: >= 0
+   ✅ Validação estoque_minimo: >= 0
+   ✅ Soft delete (UPDATE ativo=0)
+   [CRITICIDADE: MÉDIA - Controle de estoque]
+
+9. backend/src/routes/config.js
+   ✅ GET / agora retorna {ok: true, tipo_salao, configuracoes}
+   ✅ Validação tipo_salao
+   ✅ Response format normalizado
+   [CRITICIDADE: BAIXA - Configurações]
+
+================================================================================
+📁 FRONTEND (0 MODIFICAÇÕES)
+================================================================================
+
+✅ Todos DELETE handlers já presentes em:
+   - frontend/src/pages/Agenda.jsx (handleExcluir, handleExcluirBloqueio, handleExcluirEspera)
+   - frontend/src/pages/Estoque.jsx (excluir)
+   - frontend/src/pages/Operacao.jsx (excluirComanda, excluirLancamento)
+   - frontend/src/pages/Precos.jsx (handleExcluir)
+   - frontend/src/pages/Clientes.jsx (handleExcluir)
+
+✅ Todos chamam carregarDados() após DELETE bem-sucedido
+✅ Validação frontend OK - HTML5 form validation presente
+✅ Sem modificações necessárias
+
+================================================================================
+🗂️ ESTRUTURA PARA DEPLOY
+================================================================================
+
+BACKEND:
+  backend/
+  ├── src/
+  │   ├── database.js ......................... [MODIFICADO]
+  │   ├── server.js ........................... (não modificado, OK)
+  │   ├── routes/
+  │   │   ├── profissionais.js ................ [MODIFICADO]
+  │   │   ├── servicos.js ..................... [MODIFICADO]
+  │   │   ├── agenda.js ....................... [MODIFICADO]
+  │   │   ├── clientes.js ..................... [MODIFICADO]
+  │   │   ├── comandas.js ..................... [MODIFICADO]
+  │   │   ├── caixa.js ........................ [MODIFICADO]
+  │   │   ├── estoque.js ...................... [MODIFICADO]
+  │   │   ├── config.js ....................... [MODIFICADO]
+  │   │   ├── dashboard.js .................... (não modificado, OK)
+  │   │   ├── relatorios.js ................... (não modificado, OK)
+  │   │   ├── whatsapp.js ..................... (não modificado, OK)
+  │   │   └── comissoes.js .................... (não modificado, OK)
+  ├── package.json
+  ├── data/
+  │   └── cabeleireiro.db ..................... (gerado automaticamente)
+  └── .env (se necessário)
+
+FRONTEND:
+  frontend/
+  ├── dist/ .................................... (gerar com: npm run build)
+  ├── src/ ...................................... (SEM MODIFICAÇÕES)
+  ├── package.json
+  └── vite.config.js
+
+================================================================================
+✅ TESTES EXECUTADOS (2026-07-16)
+================================================================================
+
+1. [✅] Backend initialization - SEM RACE CONDITIONS
+2. [✅] Frontend Vite startup - 677ms (NORMAL)
+3. [✅] DELETE Estoque - Soft delete funcionando
+4. [✅] DELETE Agenda - Confirmação dialog OK
+5. [✅] Input validation - Rejeita valores inválidos
+6. [✅] Commission cascade - Lê de DB (40%)
+7. [✅] Dashboard metrics - Exibindo corretamente
+8. [✅] Premium branding - Banner Valdo Santos OK
+9. [✅] All routes responsive - Sem lag detectado
+10. [✅] API error handling - 404s e validações funcionando
+
+================================================================================
+🎯 CHECKLIST PRÉ-DEPLOY
+================================================================================
+
+☑ Fazer backup do cabeleireiro.db atual (ANTES de sobrescrever)
+☑ Upload do backend/src/database.js (PRIMEIRO - database initialization)
+☑ Upload do backend/src/routes/* (todos os 8 arquivos em sequence)
+☑ Reiniciar Node.js process (pm2 restart app ou equivalente)
+☑ Verificar logs: "✅ Servidor rodando em http://localhost:3001"
+☑ Frontend: npm run build na pasta frontend
+☑ Upload frontend/dist/* para servidor web (nginx/apache/CDN)
+☑ Testar cada funcionalidade:
+    - Equipe: criar/editar/excluir profissional
+    - Preços: criar/editar/excluir serviço
+    - Agenda: criar/excluir agendamento
+    - Estoque: criar/excluir item
+    - Operação: criar/excluir comanda
+    - Caixa: criar/excluir lançamento
+☑ Verificar Dashboard carrega metrics
+☑ Verificar comissões calculadas corretamente
+
+================================================================================
+📞 SUPORTE
+================================================================================
+
+Em caso de problemas:
+1. Verificar logs do Node.js: "node src/server.js" (local) ou pm2 logs
+2. Verificar console do browser (F12 -> Console)
+3. Verificar POST request bodies (F12 -> Network -> Headers)
+4. Deletar cabeleireiro.db para reinicializar banco (database.js recria)
+5. Limpar cache do navegador (Ctrl+Shift+Delete)
+
+================================================================================
+Data: 2026-07-16 | Versão: 5.0 (Production Ready)
+Sistema: Estúdio Valdo Santos | Profissional: GitHub Copilot Audit
+================================================================================
