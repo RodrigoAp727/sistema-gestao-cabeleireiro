@@ -117,7 +117,31 @@ Visualização em tempo real de:
 
 ---
 
-## 🚀 Instalação Rápida
+## � Screenshots do Sistema
+
+> Interface profissional, responsiva e dark mode — pronta para produção.
+
+### Dashboard — KPIs e Análise de Comissões
+![Dashboard com KPIs](docs/screenshots/01-dashboard-kpis.png)
+
+### Agenda — Controle de Agendamentos
+![Agenda do salão](docs/screenshots/02-agenda.png)
+
+### Equipe — Gestão de Profissionais e Comissões
+![Gestão de equipe](docs/screenshots/06-equipe.png)
+
+### Relatórios — Análise de Performance
+![Relatórios avançados](docs/screenshots/05-relatorios.png)
+
+### Clientes — Base e Histórico
+![Gestão de clientes](docs/screenshots/03-clientes.png)
+
+### Estoque — Controle de Inventário
+![Controle de estoque](docs/screenshots/04-estoque.png)
+
+---
+
+## �🚀 Instalação Rápida
 
 ### Backend
 ```bash
