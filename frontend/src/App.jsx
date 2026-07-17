@@ -12,10 +12,26 @@ import Relatorios from './pages/Relatorios';
 import WhatsAppCentral from './pages/WhatsAppCentral';
 import Comissoes from './pages/Comissoes';
 
+// Mapeamento de páginas - reduz duplicação
+const PAGE_COMPONENTS = {
+  dashboard: Dashboard,
+  agenda: Agenda,
+  precos: Precos,
+  clientes: Clientes,
+  operacao: Operacao,
+  equipe: Equipe,
+  estoque: Estoque,
+  relatorios: Relatorios,
+  whatsapp: WhatsAppCentral,
+  comissoes: Comissoes,
+};
+
 function App() {
   const [pagina, setPagina] = useState('dashboard');
-  const tipoSalao = 'masculino'; // Sempre masculino
+  const [tipoSalao, setTipoSalao] = useState('masculino');
   const [perfil, setPerfil] = useState('administrador');
+
+  const PageComponent = PAGE_COMPONENTS[pagina];
 
   return (
     <div className="min-h-screen text-slate-100">
@@ -23,22 +39,14 @@ function App() {
         pagina={pagina}
         setPagina={setPagina}
         tipoSalao={tipoSalao}
+        setTipoSalao={setTipoSalao}
         perfil={perfil}
         setPerfil={setPerfil}
       />
       
       <main className="container mx-auto px-4 pb-10 pt-7 md:pt-9">
         <SalaoBanner tipoSalao={tipoSalao} />
-        {pagina === 'dashboard' && <Dashboard tipoSalao={tipoSalao} />}
-        {pagina === 'agenda' && <Agenda tipoSalao={tipoSalao} />}
-        {pagina === 'precos' && <Precos tipoSalao={tipoSalao} />}
-        {pagina === 'clientes' && <Clientes tipoSalao={tipoSalao} />}
-        {pagina === 'operacao' && <Operacao tipoSalao={tipoSalao} />}
-        {pagina === 'equipe' && <Equipe tipoSalao={tipoSalao} />}
-        {pagina === 'estoque' && <Estoque tipoSalao={tipoSalao} />}
-        {pagina === 'relatorios' && <Relatorios tipoSalao={tipoSalao} />}
-        {pagina === 'whatsapp' && <WhatsAppCentral tipoSalao={tipoSalao} />}
-        {pagina === 'comissoes' && <Comissoes tipoSalao={tipoSalao} perfil={perfil} />}
+        {PageComponent && <PageComponent tipoSalao={tipoSalao} perfil={perfil} />}
       </main>
     </div>
   );

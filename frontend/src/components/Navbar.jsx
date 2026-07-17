@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function Navbar({ pagina, setPagina, tipoSalao, perfil, setPerfil }) {
+export default function Navbar({ pagina, setPagina, tipoSalao, setTipoSalao, perfil, setPerfil }) {
   const todasTabs = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'agenda', label: 'Agenda' },
@@ -76,6 +76,26 @@ export default function Navbar({ pagina, setPagina, tipoSalao, perfil, setPerfil
             <option value="recepcao">Recepção</option>
             <option value="profissional">Profissional</option>
           </select>
+
+          {/* Seletor de Salão */}
+          <div className="flex gap-1">
+            <button
+              onClick={() => setTipoSalao('masculino')}
+              className={`ui-button whitespace-nowrap px-3 py-1.5 text-sm transition-all ${
+                tipoSalao === 'masculino' ? 'ui-button-primary' : 'ui-button-ghost'
+              }`}
+            >
+              👨‍💼 Masculino
+            </button>
+            <button
+              onClick={() => setTipoSalao('feminino')}
+              className={`ui-button whitespace-nowrap px-3 py-1.5 text-sm transition-all ${
+                tipoSalao === 'feminino' ? 'ui-button-primary' : 'ui-button-ghost'
+              }`}
+            >
+              👩‍🦰 Feminino
+            </button>
+          </div>
 
           {tabs.map((tab) => (
             <button

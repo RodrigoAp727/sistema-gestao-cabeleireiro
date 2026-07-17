@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const db = require('./database');
+const { errorHandler } = require('./middleware');
 const agendaRoutes = require('./routes/agenda');
 const profissionaisRoutes = require('./routes/profissionais');
 const servicosRoutes = require('./routes/servicos');
@@ -13,7 +14,7 @@ const estoqueRoutes = require('./routes/estoque');
 const relatoriosRoutes = require('./routes/relatorios');
 const whatsappRoutes = require('./routes/whatsapp');
 const comissoesRoutes = require('./routes/comissoes');
-const configRoutes    = require('./routes/config');
+const configRoutes = require('./routes/config');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -34,19 +35,24 @@ app.use('/api/estoque', estoqueRoutes);
 app.use('/api/relatorios', relatoriosRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/comissoes', comissoesRoutes);
-app.use('/api/config',    configRoutes);
+app.use('/api/config', configRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK' });
 });
 
+// Middleware de erro global (deve ser o último)
+app.use(errorHandler);
+
 // Inicializar banco de dados
-db.initialize().then(() => {
-  app.listen(PORT, () => {
-    console.log(`✅ Servidor rodando em http://localhost:${PORT}`);
+db.initialize()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`✅ Servidor rodando em http://localhost:${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error('❌ Erro ao inicializar banco de dados:', err);
+    process.exit(1);
   });
-}).catch(err => {
-  console.error('❌ Erro ao inicializar banco de dados:', err);
-  process.exit(1);
-});
