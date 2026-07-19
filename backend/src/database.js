@@ -1,5 +1,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const bcrypt = require('bcryptjs');
+const { runMigrations } = require('./migrationRunner');
 
 const DB_PATH = path.join(__dirname, '../data/cabeleireiro.db');
 
@@ -8,7 +10,7 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
 });
 
 const initialize = () => {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     db.serialize(() => {
       const runAsync = (sql, params = []) => new Promise((res, rej) => {
         db.run(sql, params, function(err) {
@@ -24,13 +26,89 @@ const initialize = () => {
         });
       });
 
+      const getAsync = (sql, params = []) => new Promise((res, rej) => {
+        db.get(sql, params, (err, row) => {
+          if (err) rej(err);
+          else res(row);
+        });
+      });
+
+      // Tabela de Usuários do Sistema
+      db.run(`
+        CREATE TABLE IF NOT EXISTS sistema_usuarios (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          nome TEXT NOT NULL,
+          login TEXT NOT NULL UNIQUE COLLATE NOCASE,
+          perfil TEXT NOT NULL,
+          senha_hash TEXT NOT NULL,
+          profissional_id INTEGER DEFAULT NULL,
+          ativo BOOLEAN DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          last_login_at DATETIME DEFAULT NULL,
+          FOREIGN KEY (profissional_id) REFERENCES profissionais(id)
+        )
+      `, (err) => {
+        if (err) console.error('Erro na tabela sistema_usuarios:', err);
+      });
+
+      (async () => {
+        try {
+          const columns = await allAsync(`PRAGMA table_info(sistema_usuarios)`);
+          const nomesColunas = (columns || []).map((c) => c.name);
+          const alterSQL = [
+            { col: 'profissional_id', sql: 'ALTER TABLE sistema_usuarios ADD COLUMN profissional_id INTEGER DEFAULT NULL' },
+            { col: 'ativo', sql: 'ALTER TABLE sistema_usuarios ADD COLUMN ativo BOOLEAN DEFAULT 1' },
+            { col: 'updated_at', sql: 'ALTER TABLE sistema_usuarios ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP' },
+            { col: 'last_login_at', sql: 'ALTER TABLE sistema_usuarios ADD COLUMN last_login_at DATETIME DEFAULT NULL' },
+          ];
+
+          for (const { col, sql } of alterSQL) {
+            if (!nomesColunas.includes(col)) {
+              try {
+                await runAsync(sql);
+              } catch (e) {
+                if (!e.message.includes('duplicate column')) console.error(`Erro ao add ${col}:`, e);
+              }
+            }
+          }
+
+          await runMigrations({
+            run: runAsync,
+            get: getAsync,
+            all: allAsync,
+            logger: console,
+          });
+
+          await runAsync('CREATE INDEX IF NOT EXISTS idx_sistema_usuarios_perfil_ativo ON sistema_usuarios(perfil, ativo)');
+          await runAsync('CREATE INDEX IF NOT EXISTS idx_sistema_usuarios_profissional ON sistema_usuarios(profissional_id)');
+
+          const senhaAdmin = String(process.env.AUTH_ADMIN_PASSWORD || '100769');
+          const senhaHash = bcrypt.hashSync(senhaAdmin, 10);
+          await runAsync(
+            `INSERT INTO sistema_usuarios (nome, login, perfil, senha_hash, ativo)
+             VALUES (?, ?, ?, ?, 1)
+             ON CONFLICT(login) DO UPDATE SET
+               nome = excluded.nome,
+               perfil = excluded.perfil,
+               senha_hash = excluded.senha_hash,
+               ativo = 1,
+               profissional_id = NULL,
+               updated_at = CURRENT_TIMESTAMP`,
+            ['Rodrigo Campos', 'Rodrigo Campos', 'administrador', senhaHash]
+          );
+        } catch (e) {
+          console.error('Erro na migração de sistema_usuarios:', e);
+        }
+      })();
+
       // Tabela de Profissionais
       db.run(`
         CREATE TABLE IF NOT EXISTS profissionais (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           nome TEXT NOT NULL,
           especialidade TEXT,
-          tipo_salao TEXT DEFAULT 'masculino',
+          tipo_salao TEXT DEFAULT 'feminino',
           profissional_fornece_produtos BOOLEAN DEFAULT 0,
           comissao_percentual REAL DEFAULT NULL,
           cargo TEXT DEFAULT NULL,
@@ -75,6 +153,17 @@ const initialize = () => {
               }
             }
           }
+
+          // Higienização: manter contexto 100% feminino
+          await runAsync(`
+            UPDATE profissionais
+            SET ativo = 0
+            WHERE tipo_salao = 'feminino'
+              AND (
+                nome IN ('Carlos Silva', 'João Santos', 'Pedro Oliveira')
+                OR especialidade LIKE '%Barba%'
+              )
+          `);
         } catch (e) {
           console.error('Erro na migração de profissionais:', e);
         }
@@ -88,7 +177,7 @@ const initialize = () => {
           descricao TEXT,
           preco REAL NOT NULL,
           duracao_minutos INTEGER DEFAULT 30,
-          tipo_salao TEXT DEFAULT 'masculino',
+          tipo_salao TEXT DEFAULT 'feminino',
           comissao_tipo TEXT DEFAULT 'percentual',
           comissao_valor REAL DEFAULT NULL,
           precisa_auxiliar BOOLEAN DEFAULT 0,
@@ -120,6 +209,49 @@ const initialize = () => {
               }
             }
           }
+
+          // Migração de negócio: salão opera no feminino
+          // 1) Migra serviços masculinos para feminino quando não há conflito de nome
+          await runAsync(`
+            UPDATE servicos
+            SET tipo_salao = 'feminino'
+            WHERE tipo_salao = 'masculino'
+              AND NOT EXISTS (
+                SELECT 1
+                FROM servicos s2
+                WHERE s2.nome = servicos.nome
+                  AND s2.tipo_salao = 'feminino'
+              )
+          `);
+
+          // 2) Se restar conflito (mesmo nome em feminino), desativa o registro masculino
+          await runAsync(`
+            UPDATE servicos
+            SET ativo = 0
+            WHERE tipo_salao = 'masculino'
+              AND EXISTS (
+                SELECT 1
+                FROM servicos s2
+                WHERE s2.nome = servicos.nome
+                  AND s2.tipo_salao = 'feminino'
+              )
+          `);
+
+          // 3) Higienização: remove serviços tipicamente masculinos do catálogo feminino
+          // (podem ter sido migrados em lotes anteriores por troca de tipo_salao)
+          await runAsync(`
+            UPDATE servicos
+            SET ativo = 0
+            WHERE tipo_salao = 'feminino'
+              AND nome IN (
+                'Corte Clássico',
+                'Corte Premium',
+                'Barba Completa',
+                'Barba + Corte',
+                'Barba Desenhada',
+                'Pintura de Cabelo'
+              )
+          `);
         } catch (e) {
           console.error('Erro na migração de servicos:', e);
         }
@@ -134,6 +266,7 @@ const initialize = () => {
           tipo_salao TEXT DEFAULT 'masculino',
           profissional_id INTEGER NOT NULL,
           servico_id INTEGER NOT NULL,
+          servicos_json TEXT DEFAULT NULL,
           data_hora DATETIME NOT NULL,
           status TEXT DEFAULT 'agendado',
           preco REAL,
@@ -153,6 +286,16 @@ const initialize = () => {
           if (!nomesColunas.includes('cliente_id')) {
             await runAsync(`ALTER TABLE agendamentos ADD COLUMN cliente_id INTEGER DEFAULT NULL`);
           }
+          if (!nomesColunas.includes('servicos_json')) {
+            await runAsync(`ALTER TABLE agendamentos ADD COLUMN servicos_json TEXT DEFAULT NULL`);
+          }
+
+          // Higienização de dados legados: corrige ano truncado em registros de demonstração
+          await runAsync(`
+            UPDATE agendamentos
+            SET data_hora = replace(data_hora, '0226-', '2026-')
+            WHERE data_hora LIKE '0226-%'
+          `);
         } catch (e) {
           console.error('Erro na migração de agendamentos:', e);
         }
@@ -230,6 +373,7 @@ const initialize = () => {
           valor_total REAL DEFAULT 0,
           valor_restante REAL DEFAULT 0,
           status TEXT DEFAULT 'aberta',
+          ativo BOOLEAN DEFAULT 1,
           observacoes TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (cliente_id) REFERENCES clientes(id),
@@ -244,6 +388,7 @@ const initialize = () => {
         CREATE TABLE IF NOT EXISTS comanda_itens (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           comanda_id INTEGER NOT NULL,
+          servico_id INTEGER,
           tipo_item TEXT DEFAULT 'servico',
           descricao TEXT NOT NULL,
           quantidade REAL DEFAULT 1,
@@ -254,6 +399,18 @@ const initialize = () => {
       `, (err) => {
         if (err) console.error('Erro na tabela comanda_itens:', err);
       });
+
+      (async () => {
+        try {
+          const columns = await allAsync(`PRAGMA table_info(comanda_itens)`);
+          const nomesColunas = (columns || []).map((c) => c.name);
+          if (!nomesColunas.includes('servico_id')) {
+            await runAsync(`ALTER TABLE comanda_itens ADD COLUMN servico_id INTEGER`);
+          }
+        } catch (e) {
+          console.error('Erro na migracao de comanda_itens:', e);
+        }
+      })();
 
       // Tabela de Pagamentos da Comanda
       db.run(`
@@ -285,6 +442,23 @@ const initialize = () => {
         )
       `, (err) => {
         if (err) console.error('Erro na tabela estoque_itens:', err);
+      });
+
+      // Vinculo de consumo de insumos por servico
+      db.run(`
+        CREATE TABLE IF NOT EXISTS servico_insumos (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          servico_id INTEGER NOT NULL,
+          estoque_item_id INTEGER NOT NULL,
+          quantidade_consumo REAL NOT NULL DEFAULT 1,
+          ativo BOOLEAN DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(servico_id, estoque_item_id),
+          FOREIGN KEY (servico_id) REFERENCES servicos(id),
+          FOREIGN KEY (estoque_item_id) REFERENCES estoque_itens(id)
+        )
+      `, (err) => {
+        if (err) console.error('Erro na tabela servico_insumos:', err);
       });
 
       // Lançamentos de caixa (entradas/saídas/despesas/contas)
@@ -332,6 +506,20 @@ const initialize = () => {
         if (err) console.error('Erro na tabela cliente_fotos:', err);
       });
 
+      // Indices para performance em consultas recorrentes entre modulos
+      db.run(`CREATE INDEX IF NOT EXISTS idx_agendamentos_tipo_data ON agendamentos(tipo_salao, data_hora)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_agendamentos_prof_data ON agendamentos(profissional_id, data_hora)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_agendamentos_status ON agendamentos(status)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_comandas_tipo_status_data ON comandas(tipo_salao, status, created_at)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_comandas_cliente ON comandas(cliente_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_comandas_profissional ON comandas(profissional_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_comanda_itens_comanda ON comanda_itens(comanda_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_comanda_pagamentos_comanda_data ON comanda_pagamentos(comanda_id, created_at)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_estoque_tipo_ativo ON estoque_itens(tipo_salao, ativo)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_clientes_tipo_ativo_nome ON clientes(tipo_salao, ativo, nome)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_servicos_tipo_ativo_nome ON servicos(tipo_salao, ativo, nome)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_profissionais_tipo_ativo_nome ON profissionais(tipo_salao, ativo, nome)`);
+
       // Popular configurações padrão (idempotente)
       const configsPadrao = [
         { tipo_salao: 'masculino', chave: 'comissao_salao_fornece',         valor: '35', descricao: 'Comissão % quando o salão fornece produtos' },
@@ -372,16 +560,6 @@ const initialize = () => {
             );
           });
 
-          // SERVIÇOS MASCULINO
-          const servicosMasculino = [
-            { nome: 'Corte Clássico', preco: 40, duracao_minutos: 30, tipo_salao: 'masculino' },
-            { nome: 'Corte Premium', preco: 60, duracao_minutos: 45, tipo_salao: 'masculino' },
-            { nome: 'Barba Completa', preco: 35, duracao_minutos: 30, tipo_salao: 'masculino' },
-            { nome: 'Barba + Corte', preco: 70, duracao_minutos: 60, tipo_salao: 'masculino' },
-            { nome: 'Pintura de Cabelo', preco: 80, duracao_minutos: 60, tipo_salao: 'masculino' },
-            { nome: 'Barba Desenhada', preco: 25, duracao_minutos: 20, tipo_salao: 'masculino' }
-          ];
-
           // SERVIÇOS FEMININO
           const servicosFeminino = [
             { nome: 'Corte Feminino', preco: 50, duracao_minutos: 45, tipo_salao: 'feminino' },
@@ -398,7 +576,7 @@ const initialize = () => {
             { nome: 'Pedicure Decorada', preco: 65, duracao_minutos: 50, tipo_salao: 'feminino' }
           ];
 
-          const todosServicos = [...servicosMasculino, ...servicosFeminino];
+          const todosServicos = [...servicosFeminino];
           todosServicos.forEach(s => {
             db.run(
               'INSERT INTO servicos (nome, preco, duracao_minutos, tipo_salao) VALUES (?, ?, ?, ?)',

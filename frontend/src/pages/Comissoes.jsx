@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { TIPO_SALAO_FIXO } from '../config/salao';
 
 const MESES = [
   { valor: '01', nome: 'Janeiro' },
@@ -19,31 +20,34 @@ const MESES = [
 const fmt = (v) =>
   Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-export default function Comissoes({ tipoSalao, perfil }) {
+export default function Comissoes() {
   const hoje = new Date();
   const [mes, setMes] = useState(String(hoje.getMonth() + 1).padStart(2, '0'));
   const [ano, setAno] = useState(String(hoje.getFullYear()));
   const [dados, setDados] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
   const [expandido, setExpandido] = useState(null);
 
-  useEffect(() => {
-    carregar();
-  }, [tipoSalao, mes, ano]);
-
-  const carregar = async () => {
+  const carregar = useCallback(async () => {
     setLoading(true);
     try {
+      setErro('');
       const { data } = await axios.get(
-        `/api/comissoes?tipo_salao=${tipoSalao}&mes=${mes}&ano=${ano}`
+        `/api/comissoes?tipo_salao=${TIPO_SALAO_FIXO}&mes=${mes}&ano=${ano}`
       );
       setDados(data);
     } catch (err) {
       console.error('Erro ao carregar comissões:', err);
+      setErro('Não foi possível carregar as comissões neste momento.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [ano, mes]);
+
+  useEffect(() => {
+    carregar();
+  }, [carregar]);
 
   const nomeMes = MESES.find((m) => m.valor === mes)?.nome || mes;
 
@@ -91,7 +95,19 @@ export default function Comissoes({ tipoSalao, perfil }) {
         </div>
       )}
 
-      {!loading && dados && (
+      {!loading && erro && (
+        <div className="rounded-xl border border-slate-300/10 bg-slate-900/40 px-4 py-6 text-center text-slate-300">
+          {erro}
+        </div>
+      )}
+
+      {!loading && !erro && !dados && (
+        <div className="rounded-xl border border-slate-300/10 bg-slate-900/40 px-4 py-6 text-center text-slate-300">
+          Nenhum dado de comissão disponível para este período.
+        </div>
+      )}
+
+      {!loading && !erro && dados && (
         <>
           {/* Cards resumo */}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

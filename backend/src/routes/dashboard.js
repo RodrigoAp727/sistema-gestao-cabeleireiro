@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const db = require('../database');
 const router = express.Router();
 
@@ -7,7 +7,7 @@ const router = express.Router();
 const NOMES_MESES = [
   'Janeiro',
   'Fevereiro',
-  'Março',
+  'MarÃ§o',
   'Abril',
   'Maio',
   'Junho',
@@ -19,7 +19,7 @@ const NOMES_MESES = [
   'Dezembro',
 ];
 
-// Busca configurações do salão (percentuais de comissão) do banco de dados
+// Busca configuraÃ§Ãµes do salÃ£o (percentuais de comissÃ£o) do banco de dados
 const getConfigSalon = async (tipoSalao) => {
   try {
     const cfgSalao = await db.get(`SELECT valor FROM configuracoes WHERE tipo_salao = ? AND chave = 'comissao_salao_fornece'`, [tipoSalao]);
@@ -30,7 +30,7 @@ const getConfigSalon = async (tipoSalao) => {
       profissionalFornece: Number(cfgProfissional?.valor ?? 55),
     };
   } catch (err) {
-    console.error('Erro ao buscar config de salão:', err);
+    console.error('Erro ao buscar config de salÃ£o:', err);
     return { salaoFornece: 35, profissionalFornece: 55 }; // Fallback
   }
 };
@@ -71,28 +71,36 @@ const calcularFinanceiroProfissionais = (itens = [], salaoFornece = 35, profissi
   };
 };
 
+const getDataLocalISO = () => {
+  const agora = new Date();
+  const ano = agora.getFullYear();
+  const mes = String(agora.getMonth() + 1).padStart(2, '0');
+  const dia = String(agora.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+};
+
 // Dashboard do dia
 router.get('/dia', async (req, res) => {
   try {
-    const hoje = new Date().toISOString().split('T')[0];
-    const { tipo_salao = 'masculino' } = req.query;
+    const hoje = getDataLocalISO();
+    const { tipo_salao = 'feminino' } = req.query;
     
-    // Busca configurações do salão
+    // Busca configuraÃ§Ãµes do salÃ£o
     const config = await getConfigSalon(tipo_salao);
     
     // Total do dia
     const total = await db.get(`
       SELECT SUM(preco) as total, COUNT(*) as agendamentos
       FROM agendamentos
-      WHERE DATE(data_hora) = ? AND tipo_salao = ? AND status IN ('confirmado', 'agendado')
+      WHERE DATE(data_hora) = ? AND tipo_salao = ? AND status = 'concluido'
     `, [hoje, tipo_salao]);
 
-    // Por serviço
+    // Por serviÃ§o
     const porServico = await db.all(`
       SELECT s.nome, SUM(a.preco) as total, COUNT(*) as quantidade
       FROM agendamentos a
       JOIN servicos s ON a.servico_id = s.id
-      WHERE DATE(a.data_hora) = ? AND a.tipo_salao = ? AND a.status IN ('confirmado', 'agendado')
+      WHERE DATE(a.data_hora) = ? AND a.tipo_salao = ? AND a.status = 'concluido'
       GROUP BY s.id, s.nome
       ORDER BY total DESC
     `, [hoje, tipo_salao]);
@@ -102,7 +110,7 @@ router.get('/dia', async (req, res) => {
       SELECT p.id, p.nome, p.profissional_fornece_produtos, p.comissao_percentual, SUM(a.preco) as total, COUNT(*) as agendamentos
       FROM agendamentos a
       JOIN profissionais p ON a.profissional_id = p.id
-      WHERE DATE(a.data_hora) = ? AND a.tipo_salao = ? AND a.status IN ('confirmado', 'agendado')
+      WHERE DATE(a.data_hora) = ? AND a.tipo_salao = ? AND a.status = 'concluido'
       GROUP BY p.id, p.nome, p.profissional_fornece_produtos, p.comissao_percentual
       ORDER BY total DESC
     `, [hoje, tipo_salao]);
@@ -129,21 +137,21 @@ router.get('/mes', async (req, res) => {
     const ano = String(req.query.ano || hoje.getFullYear());
     const mesNumero = String(req.query.mes || String(hoje.getMonth() + 1).padStart(2, '0')).padStart(2, '0');
     const mes = `${ano}-${mesNumero}`;
-    const { tipo_salao = 'masculino' } = req.query;
+    const { tipo_salao = 'feminino' } = req.query;
 
-    // Busca configurações do salão
+    // Busca configuraÃ§Ãµes do salÃ£o
     const config = await getConfigSalon(tipo_salao);
 
     const total = await db.get(`
       SELECT SUM(preco) as total, COUNT(*) as agendamentos
       FROM agendamentos
-      WHERE strftime('%Y-%m', data_hora) = ? AND tipo_salao = ? AND status IN ('confirmado', 'agendado')
+      WHERE strftime('%Y-%m', data_hora) = ? AND tipo_salao = ? AND status = 'concluido'
     `, [mes, tipo_salao]);
 
     const porDia = await db.all(`
       SELECT DATE(data_hora) as dia, SUM(preco) as total, COUNT(*) as agendamentos
       FROM agendamentos
-      WHERE strftime('%Y-%m', data_hora) = ? AND tipo_salao = ? AND status IN ('confirmado', 'agendado')
+      WHERE strftime('%Y-%m', data_hora) = ? AND tipo_salao = ? AND status = 'concluido'
       GROUP BY DATE(data_hora)
       ORDER BY dia DESC
     `, [mes, tipo_salao]);
@@ -152,7 +160,7 @@ router.get('/mes', async (req, res) => {
       SELECT s.nome, SUM(a.preco) as total, COUNT(*) as quantidade
       FROM agendamentos a
       JOIN servicos s ON a.servico_id = s.id
-      WHERE strftime('%Y-%m', a.data_hora) = ? AND a.tipo_salao = ? AND a.status IN ('confirmado', 'agendado')
+      WHERE strftime('%Y-%m', a.data_hora) = ? AND a.tipo_salao = ? AND a.status = 'concluido'
       GROUP BY s.id, s.nome
       ORDER BY total DESC
     `, [mes, tipo_salao]);
@@ -161,7 +169,7 @@ router.get('/mes', async (req, res) => {
       SELECT p.id, p.nome, p.profissional_fornece_produtos, p.comissao_percentual, SUM(a.preco) as total, COUNT(*) as agendamentos
       FROM agendamentos a
       JOIN profissionais p ON a.profissional_id = p.id
-      WHERE strftime('%Y-%m', a.data_hora) = ? AND a.tipo_salao = ? AND a.status IN ('confirmado', 'agendado')
+      WHERE strftime('%Y-%m', a.data_hora) = ? AND a.tipo_salao = ? AND a.status = 'concluido'
       GROUP BY p.id, p.nome, p.profissional_fornece_produtos, p.comissao_percentual
       ORDER BY total DESC
     `, [mes, tipo_salao]);
@@ -187,21 +195,21 @@ router.get('/mes', async (req, res) => {
 router.get('/anual', async (req, res) => {
   try {
     const ano = String(req.query.ano || new Date().getFullYear());
-    const { tipo_salao = 'masculino' } = req.query;
+    const { tipo_salao = 'feminino' } = req.query;
 
-    // Busca configurações do salão
+    // Busca configuraÃ§Ãµes do salÃ£o
     const config = await getConfigSalon(tipo_salao);
 
     const resumoAnual = await db.get(`
       SELECT SUM(preco) as total, COUNT(*) as agendamentos
       FROM agendamentos
-      WHERE strftime('%Y', data_hora) = ? AND tipo_salao = ? AND status IN ('confirmado', 'agendado')
+      WHERE strftime('%Y', data_hora) = ? AND tipo_salao = ? AND status = 'concluido'
     `, [ano, tipo_salao]);
 
     const totaisPorMes = await db.all(`
       SELECT strftime('%m', data_hora) as mes_numero, SUM(preco) as total, COUNT(*) as agendamentos
       FROM agendamentos
-      WHERE strftime('%Y', data_hora) = ? AND tipo_salao = ? AND status IN ('confirmado', 'agendado')
+      WHERE strftime('%Y', data_hora) = ? AND tipo_salao = ? AND status = 'concluido'
       GROUP BY strftime('%m', data_hora)
       ORDER BY mes_numero
     `, [ano, tipo_salao]);
@@ -210,7 +218,7 @@ router.get('/anual', async (req, res) => {
       SELECT strftime('%m', a.data_hora) as mes_numero, s.nome, SUM(a.preco) as total, COUNT(*) as quantidade
       FROM agendamentos a
       JOIN servicos s ON a.servico_id = s.id
-      WHERE strftime('%Y', a.data_hora) = ? AND a.tipo_salao = ? AND a.status IN ('confirmado', 'agendado')
+      WHERE strftime('%Y', a.data_hora) = ? AND a.tipo_salao = ? AND a.status = 'concluido'
       GROUP BY strftime('%m', a.data_hora), s.id, s.nome
       ORDER BY mes_numero, total DESC
     `, [ano, tipo_salao]);
@@ -225,7 +233,7 @@ router.get('/anual', async (req, res) => {
              COUNT(*) as agendamentos
       FROM agendamentos a
       JOIN profissionais p ON a.profissional_id = p.id
-      WHERE strftime('%Y', a.data_hora) = ? AND a.tipo_salao = ? AND a.status IN ('confirmado', 'agendado')
+      WHERE strftime('%Y', a.data_hora) = ? AND a.tipo_salao = ? AND a.status = 'concluido'
       GROUP BY strftime('%m', a.data_hora), p.id, p.nome, p.profissional_fornece_produtos, p.comissao_percentual
       ORDER BY mes_numero, total DESC
     `, [ano, tipo_salao]);
@@ -239,7 +247,7 @@ router.get('/anual', async (req, res) => {
       FROM agendamentos a
       JOIN profissionais p ON a.profissional_id = p.id
       JOIN servicos s ON a.servico_id = s.id
-      WHERE strftime('%Y', a.data_hora) = ? AND a.tipo_salao = ? AND a.status IN ('confirmado', 'agendado')
+      WHERE strftime('%Y', a.data_hora) = ? AND a.tipo_salao = ? AND a.status = 'concluido'
       GROUP BY strftime('%m', a.data_hora), p.id, s.id, s.nome
       ORDER BY mes_numero, p.nome, quantidade DESC
     `, [ano, tipo_salao]);
@@ -248,7 +256,7 @@ router.get('/anual', async (req, res) => {
       SELECT p.id, p.nome, p.profissional_fornece_produtos, p.comissao_percentual, SUM(a.preco) as total, COUNT(*) as agendamentos
       FROM agendamentos a
       JOIN profissionais p ON a.profissional_id = p.id
-      WHERE strftime('%Y', a.data_hora) = ? AND a.tipo_salao = ? AND a.status IN ('confirmado', 'agendado')
+      WHERE strftime('%Y', a.data_hora) = ? AND a.tipo_salao = ? AND a.status = 'concluido'
       GROUP BY p.id, p.nome, p.profissional_fornece_produtos, p.comissao_percentual
       ORDER BY total DESC
     `, [ano, tipo_salao]);
@@ -342,3 +350,4 @@ router.get('/anual', async (req, res) => {
 });
 
 module.exports = router;
+

@@ -3,6 +3,9 @@
  * Reduz duplicação de código em todos os routers
  */
 
+const DIGITOS_TELEFONE_MIN = 10;
+const DIGITOS_TELEFONE_MAX = 11;
+
 const normalizeCommission = (value) => {
   if (value === null || value === undefined || value === '') return null;
   const num = Number(value);
@@ -32,6 +35,28 @@ const validatePositive = (field, fieldName) => {
   if (isNaN(num) || num <= 0) {
     throw new Error(`${fieldName} deve ser maior que 0`);
   }
+};
+
+const validateNonNegative = (field, fieldName) => {
+  const num = Number(field);
+  if (isNaN(num) || num < 0) {
+    throw new Error(`${fieldName} não pode ser negativo`);
+  }
+};
+
+const normalizePhone = (value) => String(value || '').replace(/\D/g, '');
+
+const validateOptionalPhone = (value, fieldName = 'Telefone') => {
+  if (value === null || value === undefined || String(value).trim() === '') {
+    return null;
+  }
+
+  const digits = normalizePhone(value);
+  if (digits.length < DIGITOS_TELEFONE_MIN || digits.length > DIGITOS_TELEFONE_MAX) {
+    throw new Error(`${fieldName} deve ter DDD e número válidos`);
+  }
+
+  return digits;
 };
 
 const normalizeBool = (value) => value ? 1 : 0;
@@ -74,6 +99,9 @@ module.exports = {
   validateRequired,
   validateMinLength,
   validatePositive,
+  validateNonNegative,
+  normalizePhone,
+  validateOptionalPhone,
   normalizeBool,
   formatMoeda,
   getFieldsFromTable,

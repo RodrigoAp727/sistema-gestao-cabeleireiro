@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { NOME_SALAO_FIXO, TIPO_SALAO_FIXO } from '../config/salao';
 
 const formVazio = {
   nome: '',
@@ -16,7 +17,7 @@ const formVazio = {
 
 const fmt = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-export default function Equipe({ tipoSalao }) {
+export default function Equipe() {
   const [itens, setItens] = useState([]);
   const [editandoId, setEditandoId] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -25,17 +26,23 @@ export default function Equipe({ tipoSalao }) {
   // Configurações do salão
   const [config, setConfig] = useState({ comissao_salao_fornece: '35', comissao_profissional_fornece: '55' });
   const [salvandoConfig, setSalvandoConfig] = useState(false);
+  const [erroTela, setErroTela] = useState('');
 
-  useEffect(() => { carregar(); carregarConfig(); }, [tipoSalao]);
+  useEffect(() => { carregar(); carregarConfig(); }, []);
 
   const carregar = async () => {
-    const { data } = await axios.get(`/api/profissionais?tipo_salao=${tipoSalao}`);
-    setItens(data);
+    try {
+      setErroTela('');
+      const { data } = await axios.get(`/api/profissionais?tipo_salao=${TIPO_SALAO_FIXO}`);
+      setItens(data);
+    } catch {
+      setErroTela('Não foi possível carregar a equipe no momento.');
+    }
   };
 
   const carregarConfig = async () => {
     try {
-      const { data } = await axios.get(`/api/config?tipo_salao=${tipoSalao}`);
+      const { data } = await axios.get(`/api/config?tipo_salao=${TIPO_SALAO_FIXO}`);
       setConfig({
         comissao_salao_fornece:        data.configuracoes?.comissao_salao_fornece?.valor        ?? '35',
         comissao_profissional_fornece: data.configuracoes?.comissao_profissional_fornece?.valor ?? '55',
@@ -50,8 +57,8 @@ export default function Equipe({ tipoSalao }) {
     setSalvandoConfig(true);
     try {
       await Promise.all([
-        axios.put('/api/config', { tipo_salao: tipoSalao, chave: 'comissao_salao_fornece',        valor: config.comissao_salao_fornece }),
-        axios.put('/api/config', { tipo_salao: tipoSalao, chave: 'comissao_profissional_fornece', valor: config.comissao_profissional_fornece }),
+        axios.put('/api/config', { tipo_salao: TIPO_SALAO_FIXO, chave: 'comissao_salao_fornece',        valor: config.comissao_salao_fornece }),
+        axios.put('/api/config', { tipo_salao: TIPO_SALAO_FIXO, chave: 'comissao_profissional_fornece', valor: config.comissao_profissional_fornece }),
       ]);
       alert('Configurações salvas com sucesso!');
     } catch (err) {
@@ -97,7 +104,7 @@ export default function Equipe({ tipoSalao }) {
 
   const salvar = async (e) => {
     e.preventDefault();
-    const payload = { ...form, tipo_salao: tipoSalao };
+    const payload = { ...form, tipo_salao: TIPO_SALAO_FIXO };
     if (editandoId) {
       await axios.put(`/api/profissionais/${editandoId}`, payload);
     } else {
@@ -105,13 +112,6 @@ export default function Equipe({ tipoSalao }) {
     }
     cancelarEdicao();
     carregar();
-  };
-
-  const corPct = (pct) => {
-    const v = Number(pct || 0);
-    if (v === 0) return 'text-red-400';
-    if (v < 30) return 'text-amber-300';
-    return 'text-emerald-300';
   };
 
   const exibirPct = (item) => {
@@ -146,6 +146,7 @@ export default function Equipe({ tipoSalao }) {
           <div className="mb-5 flex items-center justify-between">
             <h3 className="ui-title text-lg">
               {editandoId ? `Editando: ${form.nome}` : 'Novo funcionário'}
+          {erroTela && <p className="mb-3 text-sm text-slate-400">{erroTela}</p>}
             </h3>
             <button className="ui-button ui-button-ghost py-1 text-xs" onClick={cancelarEdicao}>Cancelar</button>
           </div>
@@ -191,7 +192,7 @@ export default function Equipe({ tipoSalao }) {
         <div className="mb-4 flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">⚙</div>
           <div>
-            <h3 className="ui-title text-lg">Configurações do Salão {tipoSalao === 'feminino' ? 'Feminino' : 'Masculino'}</h3>
+            <h3 className="ui-title text-lg">Configurações do {NOME_SALAO_FIXO}</h3>
             <p className="text-xs text-slate-400">Percentual de comissão padrão aplicado quando o profissional não tem % individual definido</p>
           </div>
         </div>

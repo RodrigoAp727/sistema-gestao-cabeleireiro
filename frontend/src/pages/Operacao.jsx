@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { TIPO_SALAO_FIXO } from '../config/salao';
 
-const itemVazio = () => ({ tipo_item: 'servico', descricao: '', quantidade: 1, valor_unitario: '' });
+const itemVazio = () => ({ tipo_item: 'servico', servico_id: '', descricao: '', quantidade: 1, valor_unitario: '' });
 
 const fmt = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-export default function Operacao({ tipoSalao }) {
+export default function Operacao() {
   const [comandas, setComandas] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [profissionais, setProfissionais] = useState([]);
@@ -15,6 +16,9 @@ export default function Operacao({ tipoSalao }) {
   const [pagamentoAberto, setPagamentoAberto] = useState(null); // id comanda
   const [formPgto, setFormPgto] = useState({ forma_pagamento: 'pix', valor: '' });
   const [formLancamento, setFormLancamento] = useState({ tipo: 'entrada', descricao: '', valor: '', vencimento: '' });
+  const [mostrarAvancadoComanda, setMostrarAvancadoComanda] = useState(false);
+  const [salvandoLancamento, setSalvandoLancamento] = useState(false);
+  const [erroTela, setErroTela] = useState('');
 
   const [formComanda, setFormComanda] = useState({
     cliente_id: '',
@@ -26,26 +30,28 @@ export default function Operacao({ tipoSalao }) {
   });
   const [itens, setItens] = useState([itemVazio()]);
 
-  useEffect(() => { carregarDados(); }, [tipoSalao]);
+  useEffect(() => { carregarDados(); }, []);
 
   const carregarDados = async () => {
     try {
-      const [resComandas, resClientes, resProfissionais, resCaixa, resServicos] = await Promise.all([
-        axios.get(`/api/comandas?tipo_salao=${tipoSalao}`),
-        axios.get(`/api/clientes?tipo_salao=${tipoSalao}`),
-        axios.get(`/api/profissionais?tipo_salao=${tipoSalao}`),
-        axios.get(`/api/caixa/resumo?tipo_salao=${tipoSalao}`),
-        axios.get(`/api/servicos?tipo_salao=${tipoSalao}`),
+      setErroTela('');
+      const [resComandas, resClientes, resProfissionais, resCaixa, resServicos, resLancamentos] = await Promise.all([
+        axios.get(`/api/comandas?tipo_salao=${TIPO_SALAO_FIXO}`),
+        axios.get(`/api/clientes?tipo_salao=${TIPO_SALAO_FIXO}`),
+        axios.get(`/api/profissionais?tipo_salao=${TIPO_SALAO_FIXO}`),
+        axios.get(`/api/caixa/resumo?tipo_salao=${TIPO_SALAO_FIXO}`),
+        axios.get(`/api/servicos?tipo_salao=${TIPO_SALAO_FIXO}`),
+        axios.get(`/api/caixa/lancamentos?tipo_salao=${TIPO_SALAO_FIXO}`),
       ]);
-      const { data: dadosLancamentos } = await axios.get(`/api/caixa/lancamentos?tipo_salao=${tipoSalao}`);
       setComandas(resComandas.data);
       setClientes(resClientes.data);
       setProfissionais(resProfissionais.data);
       setCaixa(resCaixa.data);
       setServicos(resServicos.data);
-      setLancamentos(dadosLancamentos);
+      setLancamentos(resLancamentos.data);
     } catch (err) {
       console.error('Erro ao carregar operação:', err);
+      setErroTela('Não foi possível carregar os dados operacionais agora.');
     }
   };
 
@@ -62,10 +68,14 @@ export default function Operacao({ tipoSalao }) {
 
   const adicionarItem = () => setItens((prev) => [...prev, itemVazio()]);
   const removerItem = (idx) => setItens((prev) => prev.filter((_, i) => i !== idx));
+  const limparItem = (idx) => {
+    setItens((prev) => prev.map((it, i) => (i === idx ? itemVazio() : it)));
+  };
 
   const selecionarServico = (idx, servicoId) => {
     const s = servicos.find((sv) => sv.id === Number(servicoId));
     if (s) {
+      atualizarItem(idx, 'servico_id', String(servicoId));
       atualizarItem(idx, 'descricao', s.nome);
       atualizarItem(idx, 'valor_unitario', s.preco);
     }
@@ -78,8 +88,8 @@ export default function Operacao({ tipoSalao }) {
       return;
     }
     try {
-      await axios.post('/api/comandas', {
-        tipo_salao: tipoSalao,
+      const { data } = await axios.post('/api/comandas', {
+        tipo_salao: TIPO_SALAO_FIXO,
         cliente_id: formComanda.cliente_id || null,
         cliente_nome: formComanda.cliente_nome,
         profissional_id: formComanda.profissional_id || null,
@@ -87,14 +97,21 @@ export default function Operacao({ tipoSalao }) {
         desconto: Number(formComanda.desconto || 0),
         sinal_pago: Number(formComanda.sinal_pago || 0),
         itens: itens.map((it) => ({
+          servico_id: it.servico_id ? Number(it.servico_id) : null,
           tipo_item: it.tipo_item,
           descricao: it.descricao,
           quantidade: Number(it.quantidade || 1),
           valor_unitario: Number(it.valor_unitario || 0),
         })),
       });
+
+      if (Array.isArray(data?.consumo_avisos) && data.consumo_avisos.length > 0) {
+        alert(`Comanda criada com avisos de estoque:\n- ${data.consumo_avisos.join('\n- ')}`);
+      }
+
       setFormComanda({ cliente_id: '', cliente_nome: '', profissional_id: '', auxiliar_nome: '', desconto: '', sinal_pago: '' });
       setItens([itemVazio()]);
+      setMostrarAvancadoComanda(false);
       carregarDados();
     } catch (err) {
       alert(`Erro ao criar comanda: ${err.message}`);
@@ -118,13 +135,21 @@ export default function Operacao({ tipoSalao }) {
 
   const salvarLancamento = async (e) => {
     e.preventDefault();
-    await axios.post('/api/caixa/lancamentos', {
-      ...formLancamento,
-      valor: Number(formLancamento.valor || 0),
-      tipo_salao: tipoSalao,
-    });
-    setFormLancamento({ tipo: 'entrada', descricao: '', valor: '', vencimento: '' });
-    carregarDados();
+    setSalvandoLancamento(true);
+    try {
+      await axios.post('/api/caixa/lancamentos', {
+        ...formLancamento,
+        valor: Number(formLancamento.valor || 0),
+        tipo_salao: TIPO_SALAO_FIXO,
+      });
+      setFormLancamento({ tipo: 'entrada', descricao: '', valor: '', vencimento: '' });
+      carregarDados();
+    } catch (err) {
+      console.error('Erro ao salvar lançamento de caixa:', err);
+      alert('Não foi possível salvar o lançamento. Tente novamente.');
+    } finally {
+      setSalvandoLancamento(false);
+    }
   };
 
   const excluirComanda = async (comanda) => {
@@ -152,6 +177,7 @@ export default function Operacao({ tipoSalao }) {
       <div className="ui-surface rounded-xl p-4">
         <h2 className="ui-title text-xl md:text-2xl">Comandas, Pagamentos e Caixa</h2>
         <p className="ui-muted mt-1 text-sm">Atendimentos · múltiplos itens · formas de pagamento</p>
+        {erroTela && <p className="mt-2 text-sm text-slate-400">{erroTela}</p>}
       </div>
 
       {/* Resumo caixa */}
@@ -187,29 +213,63 @@ export default function Operacao({ tipoSalao }) {
 
           {/* Dados do atendimento */}
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <select className="ui-select" value={formComanda.cliente_id}
-              onChange={(e) => {
-                const c = clientes.find((cl) => cl.id === Number(e.target.value));
-                setFormComanda({ ...formComanda, cliente_id: e.target.value, cliente_nome: c ? c.nome : formComanda.cliente_nome });
-              }}>
-              <option value="">Selecionar cliente cadastrado</option>
-              {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-            <input className="ui-input" placeholder="Nome do cliente *" required value={formComanda.cliente_nome}
-              onChange={(e) => setFormComanda({ ...formComanda, cliente_nome: e.target.value })} />
-            <select className="ui-select" value={formComanda.profissional_id}
-              onChange={(e) => setFormComanda({ ...formComanda, profissional_id: e.target.value })}>
-              <option value="">Profissional responsável</option>
-              {profissionais.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-            </select>
-            <input className="ui-input" placeholder="Auxiliar (opcional)" value={formComanda.auxiliar_nome}
-              onChange={(e) => setFormComanda({ ...formComanda, auxiliar_nome: e.target.value })} />
+            <div className="relative">
+              <select className="ui-select pr-10" value={formComanda.cliente_id}
+                onChange={(e) => {
+                  const c = clientes.find((cl) => cl.id === Number(e.target.value));
+                  setFormComanda({ ...formComanda, cliente_id: e.target.value, cliente_nome: c ? c.nome : formComanda.cliente_nome });
+                }}>
+                <option value="">Selecionar cliente cadastrado</option>
+                {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </select>
+              {formComanda.cliente_id && (
+                <button
+                  type="button"
+                  onClick={() => setFormComanda({ ...formComanda, cliente_id: '', cliente_nome: '' })}
+                  className="absolute right-8 top-1/2 -translate-y-1/2 rounded bg-red-500/20 px-1.5 py-0.5 text-xs text-red-300 hover:bg-red-500/40"
+                  title="Limpar cliente"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <div className="relative">
+              <input className="ui-input pr-10" placeholder="Nome do cliente *" required value={formComanda.cliente_nome}
+                onChange={(e) => setFormComanda({ ...formComanda, cliente_nome: e.target.value, cliente_id: '' })} />
+              {formComanda.cliente_nome && (
+                <button
+                  type="button"
+                  onClick={() => setFormComanda({ ...formComanda, cliente_nome: '', cliente_id: '' })}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-red-500/20 px-1.5 py-0.5 text-xs text-red-300 hover:bg-red-500/40"
+                  title="Limpar nome"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <div className="relative">
+              <select className="ui-select pr-10" value={formComanda.profissional_id}
+                onChange={(e) => setFormComanda({ ...formComanda, profissional_id: e.target.value })}>
+                <option value="">Profissional responsável</option>
+                {profissionais.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+              </select>
+              {formComanda.profissional_id && (
+                <button
+                  type="button"
+                  onClick={() => setFormComanda({ ...formComanda, profissional_id: '' })}
+                  className="absolute right-8 top-1/2 -translate-y-1/2 rounded bg-red-500/20 px-1.5 py-0.5 text-xs text-red-300 hover:bg-red-500/40"
+                  title="Limpar profissional"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Itens da comanda */}
           <div className="rounded-xl border border-slate-300/15 bg-slate-900/40 p-4">
             <div className="mb-3 flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-300">Serviços / Produtos</p>
+              <p className="text-sm font-semibold text-slate-300">Serviços</p>
               <button type="button" onClick={adicionarItem}
                 className="ui-button ui-button-ghost py-1 text-xs">
                 + Adicionar item
@@ -219,48 +279,133 @@ export default function Operacao({ tipoSalao }) {
               {itens.map((item, idx) => (
                 <div key={idx} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center">
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-[2fr_1fr_1fr]">
-                    <div className="space-y-1">
-                      <select className="ui-select w-full text-xs" defaultValue=""
-                        onChange={(e) => selecionarServico(idx, e.target.value)}>
-                        <option value="">Serviço cadastrado…</option>
+                    <div className="relative">
+                      <select className="ui-select w-full pr-10 text-xs" value={item.servico_id}
+                        onChange={(e) => selecionarServico(idx, e.target.value)} required>
+                        <option value="">Selecione o serviço</option>
                         {servicos.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
                       </select>
-                      <input className="ui-input w-full" placeholder="Descrição *" required value={item.descricao}
-                        onChange={(e) => atualizarItem(idx, 'descricao', e.target.value)} />
+                      {item.servico_id && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            atualizarItem(idx, 'servico_id', '');
+                            atualizarItem(idx, 'descricao', '');
+                            atualizarItem(idx, 'valor_unitario', '');
+                          }}
+                          className="absolute right-8 top-1/2 -translate-y-1/2 rounded bg-red-500/20 px-1.5 py-0.5 text-xs text-red-300 hover:bg-red-500/40"
+                          title="Limpar serviço"
+                        >
+                          ✕
+                        </button>
+                      )}
                     </div>
-                    <div className="space-y-1">
-                      <select className="ui-select w-full text-xs" value={item.tipo_item}
-                        onChange={(e) => atualizarItem(idx, 'tipo_item', e.target.value)}>
-                        <option value="servico">Serviço</option>
-                        <option value="produto">Produto</option>
-                        <option value="cronograma">Cronograma</option>
-                      </select>
-                      <input type="number" min="1" step="1" className="ui-input w-full" placeholder="Qtd" value={item.quantidade}
+                    <div className="relative">
+                      <input type="number" min="1" step="1" className="ui-input w-full pr-8" placeholder="Qtd" value={item.quantidade}
                         onChange={(e) => atualizarItem(idx, 'quantidade', e.target.value)} />
+                      {String(item.quantidade || '') !== '1' && item.quantidade !== '' && (
+                        <button
+                          type="button"
+                          onClick={() => atualizarItem(idx, 'quantidade', 1)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-red-500/20 px-1.5 py-0.5 text-xs text-red-300 hover:bg-red-500/40"
+                          title="Resetar quantidade"
+                        >
+                          ✕
+                        </button>
+                      )}
                     </div>
-                    <input type="number" step="0.01" className="ui-input" placeholder="Valor unit. *" required value={item.valor_unitario}
-                      onChange={(e) => atualizarItem(idx, 'valor_unitario', e.target.value)} />
+                    <div className="relative">
+                      <input type="number" step="0.01" className="ui-input pr-8" placeholder="Valor unit." required value={item.valor_unitario}
+                        onChange={(e) => atualizarItem(idx, 'valor_unitario', e.target.value)} />
+                      {item.valor_unitario !== '' && (
+                        <button
+                          type="button"
+                          onClick={() => atualizarItem(idx, 'valor_unitario', '')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-red-500/20 px-1.5 py-0.5 text-xs text-red-300 hover:bg-red-500/40"
+                          title="Limpar valor"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="text-right text-sm font-semibold text-amber-200 min-w-[80px]">
                     {fmt(Number(item.quantidade || 1) * Number(item.valor_unitario || 0))}
                   </div>
-                  {itens.length > 1 && (
-                    <button type="button" onClick={() => removerItem(idx)}
-                      className="rounded-lg bg-red-500/20 px-2 py-1 text-xs text-red-300 hover:bg-red-500/40">
-                      ✕
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => (itens.length > 1 ? removerItem(idx) : limparItem(idx))}
+                    className="rounded-lg bg-red-500/20 px-2 py-1 text-xs text-red-300 hover:bg-red-500/40"
+                    title={itens.length > 1 ? 'Excluir item' : 'Limpar item'}
+                  >
+                    ✕
+                  </button>
                 </div>
               ))}
             </div>
           </div>
 
+          <div className="flex items-center justify-between rounded-xl border border-slate-300/15 bg-slate-900/30 px-3 py-2">
+            <p className="text-xs text-slate-300">Desconto, sinal e auxiliar ficam em opções avançadas.</p>
+            <button
+              type="button"
+              onClick={() => setMostrarAvancadoComanda((v) => !v)}
+              className="ui-button ui-button-ghost py-1 text-xs"
+            >
+              {mostrarAvancadoComanda ? 'Ocultar avançado' : 'Mostrar avançado'}
+            </button>
+          </div>
+
           {/* Totais e pagamento */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <input type="number" step="0.01" className="ui-input" placeholder="Desconto (R$)" value={formComanda.desconto}
-              onChange={(e) => setFormComanda({ ...formComanda, desconto: e.target.value })} />
-            <input type="number" step="0.01" className="ui-input" placeholder="Sinal / entrada paga" value={formComanda.sinal_pago}
-              onChange={(e) => setFormComanda({ ...formComanda, sinal_pago: e.target.value })} />
+            {mostrarAvancadoComanda ? (
+              <>
+                <div className="relative">
+                  <input className="ui-input pr-8" placeholder="Auxiliar (opcional)" value={formComanda.auxiliar_nome}
+                    onChange={(e) => setFormComanda({ ...formComanda, auxiliar_nome: e.target.value })} />
+                  {formComanda.auxiliar_nome && (
+                    <button
+                      type="button"
+                      onClick={() => setFormComanda({ ...formComanda, auxiliar_nome: '' })}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-red-500/20 px-1.5 py-0.5 text-xs text-red-300 hover:bg-red-500/40"
+                      title="Limpar auxiliar"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input type="number" step="0.01" className="ui-input pr-8" placeholder="Desconto (R$)" value={formComanda.desconto}
+                    onChange={(e) => setFormComanda({ ...formComanda, desconto: e.target.value })} />
+                  {formComanda.desconto !== '' && (
+                    <button
+                      type="button"
+                      onClick={() => setFormComanda({ ...formComanda, desconto: '' })}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-red-500/20 px-1.5 py-0.5 text-xs text-red-300 hover:bg-red-500/40"
+                      title="Limpar desconto"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input type="number" step="0.01" className="ui-input pr-8" placeholder="Sinal / entrada paga" value={formComanda.sinal_pago}
+                    onChange={(e) => setFormComanda({ ...formComanda, sinal_pago: e.target.value })} />
+                  {formComanda.sinal_pago !== '' && (
+                    <button
+                      type="button"
+                      onClick={() => setFormComanda({ ...formComanda, sinal_pago: '' })}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-red-500/20 px-1.5 py-0.5 text-xs text-red-300 hover:bg-red-500/40"
+                      title="Limpar sinal"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="sm:col-span-2" />
+            )}
             <div className="rounded-xl border border-amber-300/25 bg-amber-300/10 p-3 text-sm">
               <p className="text-amber-100/70">Subtotal: <span className="font-semibold text-amber-100">{fmt(subtotalItens)}</span></p>
               <p className="text-amber-100/70">Total: <span className="font-bold text-amber-200">{fmt(totalComanda)}</span></p>
@@ -368,8 +513,12 @@ export default function Operacao({ tipoSalao }) {
             onChange={(e) => setFormLancamento({ ...formLancamento, valor: e.target.value })} />
           <input type="date" className="ui-input" value={formLancamento.vencimento}
             onChange={(e) => setFormLancamento({ ...formLancamento, vencimento: e.target.value })} />
-          <button className="ui-button ui-button-primary sm:col-span-2 md:col-span-4" type="submit">
-            Salvar lançamento
+          <button
+            className="ui-button ui-button-primary sm:col-span-2 md:col-span-4"
+            type="submit"
+            disabled={salvandoLancamento}
+          >
+            {salvandoLancamento ? 'Salvando...' : 'Salvar lançamento'}
           </button>
         </form>
         <div className="mt-4 max-h-48 space-y-2 overflow-y-auto">

@@ -74,12 +74,12 @@ const { chromium } = require('playwright');
     const outputPath = path.join(screenshotsDir, p.file);
     await page.screenshot({ path: outputPath, clip: { x: 0, y: 0, width: 1400, height: clipHeight } });
 
-    console.log(`✅ ${p.name} -> ${p.file} (${clipHeight}px)`);
+    process.stdout.write(`✅ ${p.name} -> ${p.file} (${clipHeight}px)\n`);
 
     // Resetar viewport
     await page.setViewportSize({ width: 1400, height: 900 });
   }
 
   await browser.close();
-  console.log('\n🎉 Todas as screenshots recortadas com sucesso!');
+  process.stdout.write('\n🎉 Todas as screenshots recortadas com sucesso!\n');
 })();

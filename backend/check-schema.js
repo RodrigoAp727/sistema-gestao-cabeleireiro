@@ -6,7 +6,7 @@ db.all("SELECT name FROM sqlite_master WHERE type='table'", (e, rows) => {
   let done = 0;
   rows.forEach(r => {
     db.all(`PRAGMA table_info(${r.name})`, (e2, cols) => {
-      console.log(r.name + ':', cols.map(c => c.name).join(', '));
+      process.stdout.write(`${r.name}: ${cols.map(c => c.name).join(', ')}\n`);
       done++;
       if (done === rows.length) db.close();
     });

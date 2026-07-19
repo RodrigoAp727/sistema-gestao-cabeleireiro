@@ -1,8 +1,8 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const db = require('./database');
-const { errorHandler } = require('./middleware');
+const { authenticateRequest, errorHandler, validateAuthConfiguration } = require('./middleware');
+const authRoutes = require('./routes/auth');
 const agendaRoutes = require('./routes/agenda');
 const profissionaisRoutes = require('./routes/profissionais');
 const servicosRoutes = require('./routes/servicos');
@@ -15,15 +15,26 @@ const relatoriosRoutes = require('./routes/relatorios');
 const whatsappRoutes = require('./routes/whatsapp');
 const comissoesRoutes = require('./routes/comissoes');
 const configRoutes = require('./routes/config');
+const usuariosRoutes = require('./routes/usuarios');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5174';
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
 app.use(express.json());
 
-// Routes
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK' });
+});
+
+// Auth pública
+app.use('/api/auth', authRoutes);
+
+// APIs protegidas
+app.use('/api', authenticateRequest);
 app.use('/api/agenda', agendaRoutes);
 app.use('/api/profissionais', profissionaisRoutes);
 app.use('/api/servicos', servicosRoutes);
@@ -36,11 +47,7 @@ app.use('/api/relatorios', relatoriosRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/comissoes', comissoesRoutes);
 app.use('/api/config', configRoutes);
-
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK' });
-});
+app.use('/api/usuarios', usuariosRoutes);
 
 // Middleware de erro global (deve ser o último)
 app.use(errorHandler);
@@ -48,8 +55,9 @@ app.use(errorHandler);
 // Inicializar banco de dados
 db.initialize()
   .then(() => {
+    validateAuthConfiguration();
     app.listen(PORT, () => {
-      console.log(`✅ Servidor rodando em http://localhost:${PORT}`);
+      process.stdout.write(`✅ Servidor rodando em http://localhost:${PORT}\n`);
     });
   })
   .catch(err => {

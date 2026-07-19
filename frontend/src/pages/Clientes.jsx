@@ -1,12 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { TIPO_SALAO_FIXO } from '../config/salao';
+import Pagination from '../components/Pagination';
 
-export default function Clientes({ tipoSalao }) {
+const CLIENTES_POR_PAGINA = 8;
+
+export default function Clientes() {
   const [clientes, setClientes] = useState([]);
   const [clienteSelecionado, setClienteSelecionado] = useState(null);
   const [detalhe, setDetalhe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
+  const [erro, setErro] = useState('');
+  const [paginaClientes, setPaginaClientes] = useState(1);
   const [fotoForm, setFotoForm] = useState({ tipo: 'antes', url: '', descricao: '' });
   const [form, setForm] = useState({
     nome: '',
@@ -20,16 +26,33 @@ export default function Clientes({ tipoSalao }) {
   });
 
   useEffect(() => {
-    carregarClientes();
-  }, [tipoSalao]);
+    const timer = setTimeout(() => {
+      carregarClientes(busca);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [busca]);
+
+  useEffect(() => {
+    setPaginaClientes(1);
+  }, [busca, clientes.length]);
+
+  const totalPaginasClientes = Math.max(1, Math.ceil(clientes.length / CLIENTES_POR_PAGINA));
+  const clientesPaginados = useMemo(() => {
+    const inicio = (paginaClientes - 1) * CLIENTES_POR_PAGINA;
+    return clientes.slice(inicio, inicio + CLIENTES_POR_PAGINA);
+  }, [clientes, paginaClientes]);
 
   const carregarClientes = async (termo = '') => {
     try {
-      const { data } = await axios.get(`/api/clientes?tipo_salao=${tipoSalao}&busca=${encodeURIComponent(termo)}`);
+      setLoading(true);
+      setErro('');
+      const { data } = await axios.get(`/api/clientes?tipo_salao=${TIPO_SALAO_FIXO}&busca=${encodeURIComponent(termo)}`);
       setClientes(data);
       setLoading(false);
     } catch (err) {
       console.error('Erro ao carregar clientes:', err);
+      setErro('Não foi possível carregar os clientes no momento.');
       setLoading(false);
     }
   };
@@ -39,7 +62,7 @@ export default function Clientes({ tipoSalao }) {
     try {
       await axios.post('/api/clientes', {
         ...form,
-        tipo_salao: tipoSalao,
+        tipo_salao: TIPO_SALAO_FIXO,
       });
       setForm({
         nome: '',
@@ -69,16 +92,27 @@ export default function Clientes({ tipoSalao }) {
 
   const abrirDetalhe = async (cliente) => {
     setClienteSelecionado(cliente);
-    const { data } = await axios.get(`/api/clientes/${cliente.id}/detalhe`);
-    setDetalhe(data);
+    try {
+      const { data } = await axios.get(`/api/clientes/${cliente.id}/detalhe`);
+      setDetalhe(data);
+    } catch (err) {
+      console.error('Erro ao abrir detalhe do cliente:', err);
+      alert('Não foi possível abrir a ficha do cliente. Tente novamente.');
+      setDetalhe(null);
+    }
   };
 
   const salvarFoto = async (e) => {
     e.preventDefault();
     if (!clienteSelecionado) return;
-    await axios.post(`/api/clientes/${clienteSelecionado.id}/fotos`, fotoForm);
-    setFotoForm({ tipo: 'antes', url: '', descricao: '' });
-    abrirDetalhe(clienteSelecionado);
+    try {
+      await axios.post(`/api/clientes/${clienteSelecionado.id}/fotos`, fotoForm);
+      setFotoForm({ tipo: 'antes', url: '', descricao: '' });
+      abrirDetalhe(clienteSelecionado);
+    } catch (err) {
+      console.error('Erro ao salvar foto do cliente:', err);
+      alert('Não foi possível salvar a foto. Verifique os dados e tente novamente.');
+    }
   };
 
   if (loading) {
@@ -114,17 +148,15 @@ export default function Clientes({ tipoSalao }) {
             className="ui-input max-w-xs"
             placeholder="Buscar por nome/telefone"
             value={busca}
-            onChange={(e) => {
-              const valor = e.target.value;
-              setBusca(valor);
-              carregarClientes(valor);
-            }}
+            onChange={(e) => setBusca(e.target.value)}
           />
         </div>
 
         <div className="max-h-[420px] space-y-3 overflow-y-auto">
-          {clientes.length > 0 ? (
-            clientes.map((cliente) => (
+          {erro ? (
+            <p className="py-8 text-center text-slate-400">{erro}</p>
+          ) : clientes.length > 0 ? (
+            clientesPaginados.map((cliente) => (
               <div key={cliente.id} className="flex items-start gap-2">
                 <button className="flex-1 rounded-xl border border-slate-300/15 bg-slate-900/50 p-4 text-left" onClick={() => abrirDetalhe(cliente)}>
                   <p className="font-semibold text-slate-100">{cliente.nome}</p>
@@ -140,9 +172,20 @@ export default function Clientes({ tipoSalao }) {
               </div>
             ))
           ) : (
-            <p className="py-8 text-center text-slate-400">Nenhum cliente cadastrado</p>
+            <p className="py-8 text-center text-slate-400">Nenhum cliente cadastrado ainda.</p>
           )}
         </div>
+
+        {!erro && clientes.length > 0 && (
+          <Pagination
+            page={Math.min(paginaClientes, totalPaginasClientes)}
+            totalPages={totalPaginasClientes}
+            totalItems={clientes.length}
+            pageSize={CLIENTES_POR_PAGINA}
+            itemLabel="clientes"
+            onPageChange={(proximaPagina) => setPaginaClientes(Math.min(Math.max(proximaPagina, 1), totalPaginasClientes))}
+          />
+        )}
       </div>
 
       {clienteSelecionado && detalhe && (

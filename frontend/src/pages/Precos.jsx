@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { NOME_SALAO_FIXO_MINUSCULO, TIPO_SALAO_FIXO } from '../config/salao';
 
 const formVazio = {
   nome: '',
@@ -11,22 +12,24 @@ const formVazio = {
   orientacoes_cliente: '',
 };
 
-export default function Precos({ tipoSalao }) {
+export default function Precos() {
   const [servicos, setServicos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [erroCarregamento, setErroCarregamento] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
   const [form, setForm] = useState({ ...formVazio });
-
-  useEffect(() => { carregarServicos(); }, [tipoSalao]);
+  useEffect(() => { carregarServicos(); }, []);
 
   const carregarServicos = async () => {
     try {
-      const { data } = await axios.get(`/api/servicos?tipo_salao=${tipoSalao}`);
+      setErroCarregamento('');
+      const { data } = await axios.get(`/api/servicos?tipo_salao=${TIPO_SALAO_FIXO}`);
       setServicos(data);
       setLoading(false);
     } catch (err) {
       console.error('Erro ao carregar serviços:', err);
+      setErroCarregamento('Não foi possível carregar os serviços no momento.');
       setLoading(false);
     }
   };
@@ -70,7 +73,7 @@ export default function Precos({ tipoSalao }) {
       duracao_minutos: parseInt(form.duracao_minutos),
       comissao_valor: form.comissao_valor !== '' ? parseFloat(form.comissao_valor) : null,
       precisa_auxiliar: form.precisa_auxiliar ? 1 : 0,
-      tipo_salao: tipoSalao,
+      tipo_salao: TIPO_SALAO_FIXO,
     };
     try {
       if (editandoId) {
@@ -95,9 +98,7 @@ export default function Precos({ tipoSalao }) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="ui-title text-xl md:text-2xl">Catálogo de Serviços</h2>
-            <p className="ui-muted mt-1 text-sm">
-              {tipoSalao === 'feminino' ? 'Serviços do salão feminino' : 'Serviços do salão masculino'}
-            </p>
+            <p className="ui-muted mt-1 text-sm">Serviços do {NOME_SALAO_FIXO_MINUSCULO}</p>
           </div>
           <button
             onClick={() => { if (showForm && !editandoId) { cancelar(); } else { cancelar(); setShowForm(true); } }}
@@ -174,10 +175,13 @@ export default function Precos({ tipoSalao }) {
         </div>
 
         <div className="space-y-2">
-          {servicos.length === 0 && (
-            <p className="py-8 text-center text-slate-400">Nenhum serviço cadastrado</p>
+          {erroCarregamento && (
+            <p className="py-6 text-center text-slate-400">{erroCarregamento}</p>
           )}
-          {servicos.map((s, idx) => {
+          {servicos.length === 0 && (
+            <p className="py-8 text-center text-slate-400">Nenhum serviço cadastrado ainda.</p>
+          )}
+          {!erroCarregamento && servicos.map((s, idx) => {
             const comissaoLabel = s.comissao_valor != null
               ? (s.comissao_tipo === 'fixo'
                   ? `R$ ${Number(s.comissao_valor).toFixed(2)} fixo`

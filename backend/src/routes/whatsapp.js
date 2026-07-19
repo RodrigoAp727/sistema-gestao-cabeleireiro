@@ -19,13 +19,17 @@ router.get('/templates', async (_req, res) => {
 router.post('/gerar-link', async (req, res) => {
   try {
     const { telefone, tipo = 'confirmacao', variaveis = {} } = req.body;
+    const numero = String(telefone || '').replace(/\D/g, '');
+    if (numero.length < 10) {
+      return res.status(400).json({ error: 'Telefone invalido. Informe DDD e numero.' });
+    }
+
     const base = templates[tipo] || templates.confirmacao;
 
     const texto = Object.keys(variaveis).reduce((acc, chave) => {
       return acc.replaceAll(`{{${chave}}}`, String(variaveis[chave]));
     }, base);
 
-    const numero = String(telefone || '').replace(/\D/g, '');
     const link = `https://wa.me/55${numero}?text=${encodeURIComponent(texto)}`;
 
     res.json({ link, texto });

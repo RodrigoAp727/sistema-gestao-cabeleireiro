@@ -1,11 +1,12 @@
-const express = require('express');
+﻿const express = require('express');
 const db = require('../database');
 const { asyncHandler, validateRequired, normalizeCommission, validateCommission, normalizeBool } = require('../utils');
+const { requireRoles } = require('../middleware');
 const router = express.Router();
 
 // Listar todos
-router.get('/', asyncHandler(async (req, res) => {
-  const { tipo_salao = 'masculino' } = req.query;
+router.get('/', requireRoles(['administrador', 'recepcao', 'profissional']), asyncHandler(async (req, res) => {
+  const { tipo_salao = 'feminino' } = req.query;
   const profissionais = await db.all(
     'SELECT * FROM profissionais WHERE ativo = 1 AND tipo_salao = ? ORDER BY nome',
     [tipo_salao]
@@ -14,11 +15,11 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 // Criar novo
-router.post('/', asyncHandler(async (req, res) => {
+router.post('/', requireRoles(['administrador']), asyncHandler(async (req, res) => {
   const {
     nome,
     especialidade,
-    tipo_salao = 'masculino',
+    tipo_salao = 'feminino',
     profissional_fornece_produtos = 0,
     comissao_percentual = null,
     cargo = null,
@@ -34,7 +35,7 @@ router.post('/', asyncHandler(async (req, res) => {
 
   const comissaoNormalizada = normalizeCommission(comissao_percentual);
   if (!validateCommission(comissaoNormalizada)) {
-    throw new Error('Comissão deve estar entre 0 e 100%');
+    throw new Error('ComissÃ£o deve estar entre 0 e 100%');
   }
 
   const result = await db.run(
@@ -60,7 +61,7 @@ router.post('/', asyncHandler(async (req, res) => {
 }));
 
 // Atualizar
-router.put('/:id', asyncHandler(async (req, res) => {
+router.put('/:id', requireRoles(['administrador']), asyncHandler(async (req, res) => {
   const {
     nome,
     especialidade,
@@ -101,9 +102,10 @@ router.put('/:id', asyncHandler(async (req, res) => {
 }));
 
 // Excluir (soft delete)
-router.delete('/:id', asyncHandler(async (req, res) => {
+router.delete('/:id', requireRoles(['administrador']), asyncHandler(async (req, res) => {
   await db.run('UPDATE profissionais SET ativo = 0 WHERE id = ?', [req.params.id]);
-  res.json({ ok: true, message: 'Profissional excluído' });
+  res.json({ ok: true, message: 'Profissional excluÃ­do' });
 }));
 
 module.exports = router;
+

@@ -1,16 +1,19 @@
-const express = require('express');
+﻿const express = require('express');
 const db = require('../database');
+const { requireRoles } = require('../middleware');
 
 const router = express.Router();
 
+router.use(requireRoles(['administrador']));
+
 // GET /api/config?tipo_salao=...
-// Retorna as configurações do salão
+// Retorna as configuraÃ§Ãµes do salÃ£o
 router.get('/', async (req, res) => {
   try {
-    const { tipo_salao = 'masculino' } = req.query;
+    const { tipo_salao = 'feminino' } = req.query;
     
     if (!tipo_salao || typeof tipo_salao !== 'string') {
-      return res.status(400).json({ error: 'tipo_salao é obrigatório' });
+      return res.status(400).json({ error: 'tipo_salao Ã© obrigatÃ³rio' });
     }
     
     const configs = await db.all(
@@ -37,14 +40,14 @@ router.put('/', async (req, res) => {
     const { tipo_salao, chave, valor } = req.body;
 
     if (!tipo_salao || !chave || valor === undefined) {
-      return res.status(400).json({ error: 'tipo_salao, chave e valor são obrigatórios' });
+      return res.status(400).json({ error: 'tipo_salao, chave e valor sÃ£o obrigatÃ³rios' });
     }
 
-    // Valida valores numéricos para comissão
+    // Valida valores numÃ©ricos para comissÃ£o
     if (chave.startsWith('comissao_')) {
       const num = Number(valor);
       if (isNaN(num) || num < 0 || num > 100) {
-        return res.status(400).json({ error: 'Percentual de comissão deve ser entre 0 e 100' });
+        return res.status(400).json({ error: 'Percentual de comissÃ£o deve ser entre 0 e 100' });
       }
     }
 
@@ -62,3 +65,4 @@ router.put('/', async (req, res) => {
 });
 
 module.exports = router;
+

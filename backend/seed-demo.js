@@ -68,7 +68,7 @@ db.serialize(() => {
   });
 
   setTimeout(() => {
-    console.log('✅ Dados de demo inseridos com sucesso!');
+    process.stdout.write('✅ Dados de demo inseridos com sucesso!\n');
     db.close();
   }, 1000);
 });

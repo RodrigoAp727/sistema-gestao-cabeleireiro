@@ -1,11 +1,12 @@
 const express = require('express');
 const db = require('../database');
-const { asyncHandler, validateRequired, validatePositive, normalizeBool } = require('../utils');
+const { asyncHandler, validateRequired, validatePositive, normalizeBool, normalizeCommission, validateCommission } = require('../utils');
+const { requireRoles } = require('../middleware');
 const router = express.Router();
 
 // Listar todos
-router.get('/', asyncHandler(async (req, res) => {
-  const { tipo_salao = 'masculino' } = req.query;
+router.get('/', requireRoles(['administrador', 'recepcao', 'profissional']), asyncHandler(async (req, res) => {
+  const { tipo_salao = 'feminino' } = req.query;
   const servicos = await db.all(
     'SELECT * FROM servicos WHERE ativo = 1 AND tipo_salao = ? ORDER BY preco DESC',
     [tipo_salao]
@@ -14,12 +15,12 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 // Criar novo
-router.post('/', asyncHandler(async (req, res) => {
+router.post('/', requireRoles(['administrador']), asyncHandler(async (req, res) => {
   const {
     nome,
     preco,
     duracao_minutos,
-    tipo_salao = 'masculino',
+    tipo_salao = 'feminino',
     comissao_tipo = 'percentual',
     comissao_valor = null,
     precisa_auxiliar = 0,
@@ -51,7 +52,7 @@ router.post('/', asyncHandler(async (req, res) => {
 }));
 
 // Atualizar
-router.put('/:id', asyncHandler(async (req, res) => {
+router.put('/:id', requireRoles(['administrador']), asyncHandler(async (req, res) => {
   const {
     nome,
     preco,
@@ -63,6 +64,15 @@ router.put('/:id', asyncHandler(async (req, res) => {
     variacao_preco_json,
   } = req.body;
 
+  validateRequired(nome, 'Nome do serviço');
+  validatePositive(preco, 'Preço');
+  validatePositive(duracao_minutos, 'Duração');
+
+  const comissaoNormalizada = normalizeCommission(comissao_valor);
+  if (comissao_tipo === 'percentual' && !validateCommission(comissaoNormalizada)) {
+    throw new Error('Comissão deve estar entre 0 e 100%');
+  }
+
   await db.run(
     `UPDATE servicos
      SET nome = ?, preco = ?, duracao_minutos = ?, comissao_tipo = ?, comissao_valor = ?,
@@ -73,7 +83,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
       preco,
       duracao_minutos,
       comissao_tipo,
-      comissao_valor,
+      comissaoNormalizada,
       normalizeBool(precisa_auxiliar),
       orientacoes_cliente,
       variacao_preco_json ? JSON.stringify(variacao_preco_json) : null,
@@ -84,7 +94,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
 }));
 
 // Excluir (soft delete)
-router.delete('/:id', asyncHandler(async (req, res) => {
+router.delete('/:id', requireRoles(['administrador']), asyncHandler(async (req, res) => {
   await db.run('UPDATE servicos SET ativo = 0 WHERE id = ?', [req.params.id]);
   res.json({ ok: true, message: 'Serviço excluído' });
 }));

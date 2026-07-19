@@ -1,13 +1,23 @@
 const express = require('express');
 const db = require('../database');
+const { requireRoles } = require('../middleware');
 
 const router = express.Router();
+
+router.use(requireRoles(['administrador', 'profissional']));
 
 // GET /api/comissoes?tipo_salao=&mes=&ano=
 // Retorna comissão calculada por profissional no período
 router.get('/', async (req, res) => {
   try {
     const { tipo_salao = 'feminino' } = req.query;
+    const perfil = req.auth?.perfil;
+    const profissionalAutenticadoId = Number(req.auth?.profissional_id || 0);
+
+    if (perfil === 'profissional' && profissionalAutenticadoId <= 0) {
+      return res.status(403).json({ error: 'Você não tem permissão para acessar esta área' });
+    }
+
     const ano = req.query.ano || new Date().getFullYear().toString();
     const mes = req.query.mes
       ? String(req.query.mes).padStart(2, '0')
@@ -27,6 +37,22 @@ router.get('/', async (req, res) => {
 
     // Comissão como profissional principal
     // Usa: % individual se configurado, senão % padrão do salão por categoria
+    const filtroProfissional = perfil === 'profissional' ? 'AND p.id = ?' : '';
+    const paramsComoProfissional = [
+      padraoProfissionalFornece,
+      padraoSalaoFornece,
+      padraoProfissionalFornece,
+      padraoSalaoFornece,
+      ano,
+      mes,
+      tipo_salao,
+      tipo_salao,
+    ];
+
+    if (perfil === 'profissional') {
+      paramsComoProfissional.push(profissionalAutenticadoId);
+    }
+
     const comoProfissional = await db.all(
       `SELECT
          p.id,
@@ -53,15 +79,22 @@ router.get('/', async (req, res) => {
              AND strftime('%Y', c.created_at) = ?
              AND strftime('%m', c.created_at) = ?
              AND c.tipo_salao = ?
+             AND c.ativo = 1
+         AND c.status = 'fechada'
        WHERE p.tipo_salao = ? AND p.ativo = 1
+        ${filtroProfissional}
        GROUP BY p.id, p.nome, p.cargo, p.profissional_fornece_produtos, p.comissao_percentual
        ORDER BY comissao_calculada DESC`,
-      [padraoProfissionalFornece, padraoSalaoFornece,
-       padraoProfissionalFornece, padraoSalaoFornece,
-       ano, mes, tipo_salao, tipo_salao]
+      paramsComoProfissional
     );
 
     // Itens por profissional no período (detalhamento)
+    const paramsItens = [tipo_salao, ano, mes];
+    const filtroItensProfissional = perfil === 'profissional' ? 'AND p.id = ?' : '';
+    if (perfil === 'profissional') {
+      paramsItens.push(profissionalAutenticadoId);
+    }
+
     const itensPorProfissional = await db.all(
       `SELECT
          p.id as profissional_id,
@@ -75,9 +108,12 @@ router.get('/', async (req, res) => {
        WHERE c.tipo_salao = ?
          AND strftime('%Y', c.created_at) = ?
          AND strftime('%m', c.created_at) = ?
+         AND c.ativo = 1
+         AND c.status = 'fechada'
+         ${filtroItensProfissional}
        GROUP BY p.id, ci.descricao, ci.tipo_item
        ORDER BY total_item DESC`,
-      [tipo_salao, ano, mes]
+      paramsItens
     );
 
     // Agrupa itens por profissional_id para facilitar frontend
@@ -118,7 +154,20 @@ router.get('/', async (req, res) => {
 router.get('/anual', async (req, res) => {
   try {
     const { tipo_salao = 'feminino' } = req.query;
+    const perfil = req.auth?.perfil;
+    const profissionalAutenticadoId = Number(req.auth?.profissional_id || 0);
+
+    if (perfil === 'profissional' && profissionalAutenticadoId <= 0) {
+      return res.status(403).json({ error: 'Você não tem permissão para acessar esta área' });
+    }
+
     const ano = req.query.ano || new Date().getFullYear().toString();
+
+    const filtroProfissional = perfil === 'profissional' ? 'AND p.id = ?' : '';
+    const params = [tipo_salao, ano];
+    if (perfil === 'profissional') {
+      params.push(profissionalAutenticadoId);
+    }
 
     const mensal = await db.all(
       `SELECT
@@ -130,9 +179,12 @@ router.get('/anual', async (req, res) => {
        JOIN profissionais p ON p.id = c.profissional_id
        WHERE c.tipo_salao = ?
          AND strftime('%Y', c.created_at) = ?
+         AND c.ativo = 1
+         AND c.status = 'fechada'
+         ${filtroProfissional}
        GROUP BY mes, p.id
        ORDER BY mes, p.nome`,
-      [tipo_salao, ano]
+      params
     );
 
     res.json({ ano, tipo_salao, mensal });

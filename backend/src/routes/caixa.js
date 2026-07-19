@@ -1,25 +1,36 @@
-const express = require('express');
+﻿const express = require('express');
 const db = require('../database');
+const { requireRoles } = require('../middleware');
 
 const router = express.Router();
 
+router.use(requireRoles(['administrador', 'recepcao']));
+
+const getDataLocalISO = () => {
+  const agora = new Date();
+  const ano = agora.getFullYear();
+  const mes = String(agora.getMonth() + 1).padStart(2, '0');
+  const dia = String(agora.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+};
+
 router.get('/resumo', async (req, res) => {
   try {
-    const hoje = new Date().toISOString().slice(0, 10);
+    const hoje = getDataLocalISO();
     const mes = hoje.slice(0, 7);
-    const { tipo_salao = 'masculino' } = req.query;
+    const { tipo_salao = 'feminino' } = req.query;
 
     const faturamentoDia = await db.get(
       `SELECT SUM(valor_total) as total, COUNT(*) as quantidade
        FROM comandas
-       WHERE DATE(created_at) = ? AND tipo_salao = ?`,
+       WHERE DATE(created_at) = ? AND tipo_salao = ? AND ativo = 1 AND status = 'fechada'`,
       [hoje, tipo_salao]
     );
 
     const faturamentoMes = await db.get(
       `SELECT SUM(valor_total) as total, COUNT(*) as quantidade
        FROM comandas
-       WHERE strftime('%Y-%m', created_at) = ? AND tipo_salao = ?`,
+       WHERE strftime('%Y-%m', created_at) = ? AND tipo_salao = ? AND ativo = 1 AND status = 'fechada'`,
       [mes, tipo_salao]
     );
 
@@ -27,14 +38,14 @@ router.get('/resumo', async (req, res) => {
       `SELECT SUM(cp.valor) as total
        FROM comanda_pagamentos cp
        JOIN comandas c ON c.id = cp.comanda_id
-       WHERE DATE(cp.created_at) = ? AND c.tipo_salao = ?`,
+       WHERE DATE(cp.created_at) = ? AND c.tipo_salao = ? AND c.ativo = 1`,
       [hoje, tipo_salao]
     );
 
     const pendente = await db.get(
       `SELECT SUM(valor_restante) as total
        FROM comandas
-       WHERE status = 'aberta' AND tipo_salao = ?`,
+       WHERE status = 'aberta' AND tipo_salao = ? AND ativo = 1`,
       [tipo_salao]
     );
 
@@ -75,7 +86,7 @@ router.get('/resumo', async (req, res) => {
 
 router.get('/lancamentos', async (req, res) => {
   try {
-    const { tipo_salao = 'masculino' } = req.query;
+    const { tipo_salao = 'feminino' } = req.query;
     const itens = await db.all(
       `SELECT * FROM caixa_lancamentos WHERE tipo_salao = ? ORDER BY created_at DESC`,
       [tipo_salao]
@@ -88,14 +99,14 @@ router.get('/lancamentos', async (req, res) => {
 
 router.post('/lancamentos', async (req, res) => {
   try {
-    const { tipo, descricao, valor, vencimento, status = 'aberto', tipo_salao = 'masculino' } = req.body;
+    const { tipo, descricao, valor, vencimento, status = 'aberto', tipo_salao = 'feminino' } = req.body;
     
     if (!tipo || !['entrada', 'saida', 'despesa', 'conta_pagar'].includes(tipo)) {
-      return res.status(400).json({ error: 'Tipo de lançamento inválido' });
+      return res.status(400).json({ error: 'Tipo de lanÃ§amento invÃ¡lido' });
     }
     
     if (!descricao || descricao.trim() === '') {
-      return res.status(400).json({ error: 'Descrição é obrigatória' });
+      return res.status(400).json({ error: 'DescriÃ§Ã£o Ã© obrigatÃ³ria' });
     }
     
     if (!valor || Number(valor) <= 0) {
@@ -107,7 +118,7 @@ router.post('/lancamentos', async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?)`,
       [tipo, descricao, Number(valor || 0), vencimento || null, status, tipo_salao]
     );
-    res.status(201).json({ id: result.id, message: 'Lançamento registrado' });
+    res.status(201).json({ id: result.id, message: 'LanÃ§amento registrado' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -116,13 +127,13 @@ router.post('/lancamentos', async (req, res) => {
 router.delete('/lancamentos/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!id || id <= 0) return res.status(400).json({ error: 'ID inválido' });
+    if (!id || id <= 0) return res.status(400).json({ error: 'ID invÃ¡lido' });
     
     const lancamento = await db.get('SELECT id FROM caixa_lancamentos WHERE id = ?', [id]);
-    if (!lancamento) return res.status(404).json({ error: 'Lançamento não encontrado' });
+    if (!lancamento) return res.status(404).json({ error: 'LanÃ§amento nÃ£o encontrado' });
     
     await db.run('DELETE FROM caixa_lancamentos WHERE id = ?', [id]);
-    res.json({ ok: true, message: 'Lançamento excluído' });
+    res.json({ ok: true, message: 'LanÃ§amento excluÃ­do' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -130,16 +141,16 @@ router.delete('/lancamentos/:id', async (req, res) => {
 
 router.post('/fechamento', async (req, res) => {
   try {
-    const { tipo_salao = 'masculino' } = req.body;
+    const { tipo_salao = 'feminino' } = req.body;
     const resumo = await db.get(
       `SELECT SUM(valor_total) as total, COUNT(*) as comandas
        FROM comandas
-       WHERE DATE(created_at) = DATE('now') AND tipo_salao = ?`,
+       WHERE DATE(created_at) = DATE('now') AND tipo_salao = ? AND ativo = 1 AND status = 'fechada'`,
       [tipo_salao]
     );
     res.json({
-      message: 'Fechamento diário calculado',
-      data: new Date().toISOString().slice(0, 10),
+      message: 'Fechamento diÃ¡rio calculado',
+      data: getDataLocalISO(),
       tipo_salao,
       total: Number(resumo?.total || 0),
       comandas: Number(resumo?.comandas || 0),
@@ -150,3 +161,4 @@ router.post('/fechamento', async (req, res) => {
 });
 
 module.exports = router;
+

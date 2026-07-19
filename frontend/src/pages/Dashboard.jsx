@@ -1,9 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { NOME_SALAO_FIXO, TIPO_SALAO_FIXO } from '../config/salao';
 
-export default function Dashboard({ tipoSalao }) {
+const DASHBOARD_REFRESH_MS = 30000;
+
+export default function Dashboard() {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
   const [filtro, setFiltro] = useState('mes');
   const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
   const [mesSelecionado, setMesSelecionado] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
@@ -23,22 +27,17 @@ export default function Dashboard({ tipoSalao }) {
     { valor: '12', nome: 'Dezembro' },
   ];
 
-  useEffect(() => {
-    carregarDados();
-    const intervalo = setInterval(carregarDados, 5000);
-    return () => clearInterval(intervalo);
-  }, [filtro, tipoSalao, anoSelecionado, mesSelecionado]);
-
-  const carregarDados = async () => {
+  const carregarDados = useCallback(async () => {
     try {
-      let url = `/api/dashboard/dia?tipo_salao=${tipoSalao}`;
+      setErro('');
+      let url = `/api/dashboard/dia?tipo_salao=${TIPO_SALAO_FIXO}`;
 
       if (filtro === 'mes') {
-        url = `/api/dashboard/mes?tipo_salao=${tipoSalao}&ano=${anoSelecionado}&mes=${mesSelecionado}`;
+        url = `/api/dashboard/mes?tipo_salao=${TIPO_SALAO_FIXO}&ano=${anoSelecionado}&mes=${mesSelecionado}`;
       }
 
       if (filtro === 'anual') {
-        url = `/api/dashboard/anual?tipo_salao=${tipoSalao}&ano=${anoSelecionado}`;
+        url = `/api/dashboard/anual?tipo_salao=${TIPO_SALAO_FIXO}&ano=${anoSelecionado}`;
       }
 
       const { data } = await axios.get(url);
@@ -46,9 +45,93 @@ export default function Dashboard({ tipoSalao }) {
       setLoading(false);
     } catch (err) {
       console.error('Erro ao carregar dashboard:', err);
+      setErro('Não foi possível carregar o dashboard no momento.');
       setLoading(false);
     }
-  };
+  }, [anoSelecionado, filtro, mesSelecionado]);
+
+  useEffect(() => {
+    carregarDados();
+
+    const intervalo = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        carregarDados();
+      }
+    }, DASHBOARD_REFRESH_MS);
+
+    return () => clearInterval(intervalo);
+  }, [carregarDados]);
+
+  const dashboardData = dashboard || {};
+  const isAnual = filtro === 'anual';
+
+  const resumo = isAnual
+    ? (dashboardData.resumoAnual || { total: 0, agendamentos: 0 })
+    : (dashboardData.resumo || dashboardData.total || { total: 0, agendamentos: 0 });
+
+  const resumoFinanceiro = isAnual
+    ? (dashboardData.resumoFinanceiroAnual || {
+        total_comissao_profissionais: 0,
+        total_retencao_salao: 0,
+        percentual_medio_comissao: 0,
+      })
+    : (dashboardData.resumoFinanceiro || {
+        total_comissao_profissionais: 0,
+        total_retencao_salao: 0,
+        percentual_medio_comissao: 0,
+      });
+
+  const mesesAnuais = useMemo(() => dashboardData.meses || [], [dashboardData.meses]);
+  const porProfissional = useMemo(
+    () => (isAnual ? (dashboardData.porProfissionalAnual || []) : (dashboardData.porProfissional || [])),
+    [dashboardData.porProfissional, dashboardData.porProfissionalAnual, isAnual]
+  );
+
+  const porServico = useMemo(() => (
+    isAnual
+      ? mesesAnuais
+          .flatMap((mes) => mes.porServico || [])
+          .reduce((acc, item) => {
+            const existente = acc.find((servico) => servico.nome === item.nome);
+            if (existente) {
+              existente.total += Number(item.total || 0);
+              existente.quantidade += Number(item.quantidade || 0);
+            } else {
+              acc.push({
+                nome: item.nome,
+                total: Number(item.total || 0),
+                quantidade: Number(item.quantidade || 0),
+              });
+            }
+            return acc;
+          }, [])
+          .sort((a, b) => b.total - a.total)
+      : (dashboardData.porServico || [])
+  ), [dashboardData.porServico, isAnual, mesesAnuais]);
+
+  const totalGeral = Number(resumo.total || 0);
+  const melhorProfissional = porProfissional[0];
+  const maiorValorProfissional = melhorProfissional ? Number(melhorProfissional.valor_comissao || 0) : 0;
+
+  const dadosGrafico = useMemo(() => porProfissional.slice(0, 8).map((item) => ({
+    nome: item.nome,
+    valor: Number(item.valor_comissao || 0),
+  })), [porProfissional]);
+
+  const valorMaximoGrafico = dadosGrafico.length > 0
+    ? Math.max(...dadosGrafico.map((item) => item.valor), 1)
+    : 1;
+
+  const mesesComDados = useMemo(
+    () => mesesAnuais.filter((mes) => Number(mes.resumo?.agendamentos || 0) > 0),
+    [mesesAnuais]
+  );
+
+  const resumoAnualMeses = useMemo(() => mesesAnuais.reduce((acc, mes) => {
+    acc.totalComissao += Number(mes.resumoFinanceiro?.total_comissao_profissionais || 0);
+    acc.totalRetencao += Number(mes.resumoFinanceiro?.total_retencao_salao || 0);
+    return acc;
+  }, { totalComissao: 0, totalRetencao: 0 }), [mesesAnuais]);
 
   if (loading) {
     return (
@@ -61,64 +144,10 @@ export default function Dashboard({ tipoSalao }) {
   if (!dashboard) {
     return (
       <div className="py-12 text-center">
-        <p className="text-slate-400">Sem dados para exibir</p>
+        <p className="text-slate-400">{erro || 'Sem dados para exibir'}</p>
       </div>
     );
   }
-
-  const isAnual = filtro === 'anual';
-
-  const resumo = isAnual
-    ? (dashboard.resumoAnual || { total: 0, agendamentos: 0 })
-    : (dashboard.resumo || dashboard.total || { total: 0, agendamentos: 0 });
-
-  const resumoFinanceiro = isAnual
-    ? (dashboard.resumoFinanceiroAnual || {
-        total_comissao_profissionais: 0,
-        total_retencao_salao: 0,
-        percentual_medio_comissao: 0,
-      })
-    : (dashboard.resumoFinanceiro || {
-        total_comissao_profissionais: 0,
-        total_retencao_salao: 0,
-        percentual_medio_comissao: 0,
-      });
-
-  const mesesAnuais = dashboard.meses || [];
-  const porProfissional = isAnual ? (dashboard.porProfissionalAnual || []) : (dashboard.porProfissional || []);
-
-  const porServico = isAnual
-    ? mesesAnuais
-        .flatMap((mes) => mes.porServico || [])
-        .reduce((acc, item) => {
-          const existente = acc.find((s) => s.nome === item.nome);
-          if (existente) {
-            existente.total += Number(item.total || 0);
-            existente.quantidade += Number(item.quantidade || 0);
-          } else {
-            acc.push({
-              nome: item.nome,
-              total: Number(item.total || 0),
-              quantidade: Number(item.quantidade || 0),
-            });
-          }
-          return acc;
-        }, [])
-        .sort((a, b) => b.total - a.total)
-    : (dashboard.porServico || []);
-
-  const totalGeral = Number(resumo.total || 0);
-  const melhorProfissional = porProfissional[0];
-  const maiorValorProfissional = melhorProfissional ? Number(melhorProfissional.valor_comissao || 0) : 0;
-
-  const dadosGrafico = porProfissional.slice(0, 8).map((item) => ({
-    nome: item.nome,
-    valor: Number(item.valor_comissao || 0),
-  }));
-
-  const valorMaximoGrafico = dadosGrafico.length > 0
-    ? Math.max(...dadosGrafico.map((item) => item.valor), 1)
-    : 1;
 
   const formatarMoeda = (valor) =>
     Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -131,23 +160,13 @@ export default function Dashboard({ tipoSalao }) {
     ? 'Top profissionais por comissão no dia'
     : (filtro === 'mes' ? 'Top profissionais por comissão no mês' : 'Top profissionais por comissão no ano');
 
-  const mesesComDados = mesesAnuais.filter((mes) => Number(mes.resumo?.agendamentos || 0) > 0);
-
-  const resumoAnualMeses = mesesAnuais.reduce((acc, mes) => {
-    acc.totalComissao += Number(mes.resumoFinanceiro?.total_comissao_profissionais || 0);
-    acc.totalRetencao += Number(mes.resumoFinanceiro?.total_retencao_salao || 0);
-    return acc;
-  }, { totalComissao: 0, totalRetencao: 0 });
-
   return (
     <div className="space-y-6">
       <div className="ui-surface rounded-xl p-3 md:p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="ui-title text-lg md:text-xl">Painel de Performance</p>
-            <p className="ui-muted text-sm">
-              {tipoSalao === 'feminino' ? 'Visão do salão feminino' : 'Visão do salão masculino'}
-            </p>
+            <p className="ui-muted text-sm">Visão do {NOME_SALAO_FIXO.toLowerCase()}</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
