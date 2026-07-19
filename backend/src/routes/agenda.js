@@ -1,6 +1,7 @@
 ﻿const express = require('express');
 const db = require('../database');
 const { requireRoles } = require('../middleware');
+const { getPaginationParams, clampPagination, formatPaginatedResponse } = require('../pagination');
 const router = express.Router();
 
 const formatDateTimeLocalSql = (date) => {
@@ -357,17 +358,46 @@ router.get('/bloqueios', requireRoles(['administrador', 'recepcao']), async (req
 router.get('/lista-espera', requireRoles(['administrador', 'recepcao']), async (req, res) => {
   try {
     const { tipo_salao = 'feminino' } = req.query;
+    const pagination = getPaginationParams(req.query);
+    const total = await db.get(
+      `SELECT COUNT(*) AS total
+       FROM lista_espera l
+       WHERE l.tipo_salao = ? AND l.status = 'pendente'`,
+      [tipo_salao]
+    );
+
+    if (!pagination.paginated) {
+      const itens = await db.all(
+        `SELECT l.*, p.nome as profissional_nome, s.nome as servico_nome
+         FROM lista_espera l
+         LEFT JOIN profissionais p ON p.id = l.profissional_id
+         LEFT JOIN servicos s ON s.id = l.servico_id
+         WHERE l.tipo_salao = ? AND l.status = 'pendente'
+         ORDER BY l.created_at DESC`,
+        [tipo_salao]
+      );
+
+      return res.json(itens);
+    }
+
+    const normalized = clampPagination({
+      page: pagination.page,
+      limit: pagination.limit,
+      total: Number(total?.total || 0),
+    });
+
     const itens = await db.all(
       `SELECT l.*, p.nome as profissional_nome, s.nome as servico_nome
        FROM lista_espera l
        LEFT JOIN profissionais p ON p.id = l.profissional_id
        LEFT JOIN servicos s ON s.id = l.servico_id
        WHERE l.tipo_salao = ? AND l.status = 'pendente'
-       ORDER BY l.created_at DESC`,
-      [tipo_salao]
+       ORDER BY l.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [tipo_salao, normalized.limit, normalized.offset]
     );
 
-    res.json(itens);
+    return res.json(formatPaginatedResponse({ items: itens, pagination: normalized }));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

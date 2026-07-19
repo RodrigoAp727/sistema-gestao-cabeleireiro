@@ -2,16 +2,38 @@
 const db = require('../database');
 const { asyncHandler, validateRequired, normalizeCommission, validateCommission, normalizeBool } = require('../utils');
 const { requireRoles } = require('../middleware');
+const { getPaginationParams, clampPagination, formatPaginatedResponse } = require('../pagination');
 const router = express.Router();
 
 // Listar todos
 router.get('/', requireRoles(['administrador', 'recepcao', 'profissional']), asyncHandler(async (req, res) => {
   const { tipo_salao = 'feminino' } = req.query;
-  const profissionais = await db.all(
-    'SELECT * FROM profissionais WHERE ativo = 1 AND tipo_salao = ? ORDER BY nome',
+  const pagination = getPaginationParams(req.query);
+  const total = await db.get(
+    'SELECT COUNT(*) AS total FROM profissionais WHERE ativo = 1 AND tipo_salao = ?',
     [tipo_salao]
   );
-  res.json(profissionais);
+
+  if (!pagination.paginated) {
+    const profissionais = await db.all(
+      'SELECT * FROM profissionais WHERE ativo = 1 AND tipo_salao = ? ORDER BY nome',
+      [tipo_salao]
+    );
+    return res.json(profissionais);
+  }
+
+  const normalized = clampPagination({
+    page: pagination.page,
+    limit: pagination.limit,
+    total: Number(total?.total || 0),
+  });
+
+  const profissionais = await db.all(
+    'SELECT * FROM profissionais WHERE ativo = 1 AND tipo_salao = ? ORDER BY nome LIMIT ? OFFSET ?',
+    [tipo_salao, normalized.limit, normalized.offset]
+  );
+
+  return res.json(formatPaginatedResponse({ items: profissionais, pagination: normalized }));
 }));
 
 // Criar novo

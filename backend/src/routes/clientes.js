@@ -2,11 +2,43 @@
 const db = require('../database');
 const { requireRoles } = require('../middleware');
 const { asyncHandler, validateMinLength, validateOptionalPhone, validateRequired } = require('../utils');
+const { getPaginationParams, clampPagination, formatPaginatedResponse } = require('../pagination');
 
 const router = express.Router();
 
 router.get('/', requireRoles(['administrador', 'recepcao', 'profissional']), asyncHandler(async (req, res) => {
   const { tipo_salao = 'feminino', busca = '' } = req.query;
+  const pagination = getPaginationParams(req.query);
+  const buscaLike = `%${busca}%`;
+
+  const total = await db.get(
+    `SELECT COUNT(*) AS total
+     FROM clientes
+     WHERE ativo = 1
+       AND tipo_salao = ?
+       AND (nome LIKE ? OR COALESCE(telefone, '') LIKE ? OR COALESCE(whatsapp, '') LIKE ?)`,
+    [tipo_salao, buscaLike, buscaLike, buscaLike]
+  );
+
+  if (!pagination.paginated) {
+    const clientes = await db.all(
+      `SELECT *
+       FROM clientes
+       WHERE ativo = 1
+         AND tipo_salao = ?
+         AND (nome LIKE ? OR COALESCE(telefone, '') LIKE ? OR COALESCE(whatsapp, '') LIKE ?)
+       ORDER BY nome`,
+      [tipo_salao, buscaLike, buscaLike, buscaLike]
+    );
+
+    return res.json(clientes);
+  }
+
+  const normalized = clampPagination({
+    page: pagination.page,
+    limit: pagination.limit,
+    total: Number(total?.total || 0),
+  });
 
   const clientes = await db.all(
     `SELECT *
@@ -14,11 +46,12 @@ router.get('/', requireRoles(['administrador', 'recepcao', 'profissional']), asy
      WHERE ativo = 1
        AND tipo_salao = ?
        AND (nome LIKE ? OR COALESCE(telefone, '') LIKE ? OR COALESCE(whatsapp, '') LIKE ?)
-     ORDER BY nome`,
-    [tipo_salao, `%${busca}%`, `%${busca}%`, `%${busca}%`]
+     ORDER BY nome
+     LIMIT ? OFFSET ?`,
+    [tipo_salao, buscaLike, buscaLike, buscaLike, normalized.limit, normalized.offset]
   );
 
-  res.json(clientes);
+  return res.json(formatPaginatedResponse({ items: clientes, pagination: normalized }));
 }));
 
 router.post('/', requireRoles(['administrador', 'recepcao']), asyncHandler(async (req, res) => {

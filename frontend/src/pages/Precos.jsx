@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { NOME_SALAO_FIXO_MINUSCULO, TIPO_SALAO_FIXO } from '../config/salao';
+import Pagination from '../components/Pagination';
+
+const SERVICOS_POR_PAGINA = 20;
 
 const formVazio = {
   nome: '',
@@ -19,13 +22,18 @@ export default function Precos() {
   const [showForm, setShowForm] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
   const [form, setForm] = useState({ ...formVazio });
-  useEffect(() => { carregarServicos(); }, []);
+  const [paginaServicos, setPaginaServicos] = useState(1);
+  const [totalServicos, setTotalServicos] = useState(0);
+  useEffect(() => { carregarServicos(1); }, []);
 
-  const carregarServicos = async () => {
+  const carregarServicos = async (pagina = paginaServicos) => {
     try {
       setErroCarregamento('');
-      const { data } = await axios.get(`/api/servicos?tipo_salao=${TIPO_SALAO_FIXO}`);
-      setServicos(data);
+      const { data } = await axios.get(`/api/servicos?tipo_salao=${TIPO_SALAO_FIXO}&page=${pagina}&limit=${SERVICOS_POR_PAGINA}`);
+      const itensNormalizados = Array.isArray(data) ? data : (data?.items || []);
+      setServicos(itensNormalizados);
+      setTotalServicos(Array.isArray(data) ? itensNormalizados.length : Number(data?.total || itensNormalizados.length));
+      setPaginaServicos(Array.isArray(data) ? pagina : Number(data?.page || pagina));
       setLoading(false);
     } catch (err) {
       console.error('Erro ao carregar serviços:', err);
@@ -53,7 +61,7 @@ export default function Precos() {
     if (!window.confirm(`Excluir "${s.nome}"? Esta ação não pode ser desfeita.`)) return;
     try {
       await axios.delete(`/api/servicos/${s.id}`);
-      carregarServicos();
+      carregarServicos(paginaServicos);
     } catch (err) {
       alert('Erro ao excluir: ' + err.message);
     }
@@ -82,7 +90,7 @@ export default function Precos() {
         await axios.post('/api/servicos', payload);
       }
       cancelar();
-      carregarServicos();
+      carregarServicos(paginaServicos);
     } catch (err) {
       alert('Erro ao salvar serviço: ' + err.message);
     }
@@ -163,7 +171,7 @@ export default function Precos() {
 
       <div className="ui-surface rounded-xl p-6 md:p-8">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="ui-title text-lg">Tabela de Preços ({servicos.length})</h3>
+          <h3 className="ui-title text-lg">Tabela de Preços ({totalServicos})</h3>
           {servicos.length > 0 && (
             <p className="text-sm text-slate-400">
               Preço médio:{' '}
@@ -223,6 +231,21 @@ export default function Precos() {
             );
           })}
         </div>
+
+        {!erroCarregamento && servicos.length > 0 && (
+          <Pagination
+            page={paginaServicos}
+            totalPages={Math.max(1, Math.ceil(totalServicos / SERVICOS_POR_PAGINA))}
+            totalItems={totalServicos}
+            pageSize={SERVICOS_POR_PAGINA}
+            itemLabel="serviços"
+            onPageChange={(proximaPagina) => {
+              const paginaNormalizada = Math.max(proximaPagina, 1);
+              setPaginaServicos(paginaNormalizada);
+              carregarServicos(paginaNormalizada);
+            }}
+          />
+        )}
       </div>
     </div>
   );

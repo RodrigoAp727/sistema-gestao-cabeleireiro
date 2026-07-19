@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { NOME_SALAO_FIXO, TIPO_SALAO_FIXO } from '../config/salao';
+import Pagination from '../components/Pagination';
+
+const EQUIPE_POR_PAGINA = 20;
 
 const formVazio = {
   nome: '',
@@ -22,19 +25,24 @@ export default function Equipe() {
   const [editandoId, setEditandoId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...formVazio });
+  const [paginaItens, setPaginaItens] = useState(1);
+  const [totalItens, setTotalItens] = useState(0);
 
   // Configurações do salão
   const [config, setConfig] = useState({ comissao_salao_fornece: '35', comissao_profissional_fornece: '55' });
   const [salvandoConfig, setSalvandoConfig] = useState(false);
   const [erroTela, setErroTela] = useState('');
 
-  useEffect(() => { carregar(); carregarConfig(); }, []);
+  useEffect(() => { carregar(1); carregarConfig(); }, []);
 
-  const carregar = async () => {
+  const carregar = async (pagina = paginaItens) => {
     try {
       setErroTela('');
-      const { data } = await axios.get(`/api/profissionais?tipo_salao=${TIPO_SALAO_FIXO}`);
-      setItens(data);
+      const { data } = await axios.get(`/api/profissionais?tipo_salao=${TIPO_SALAO_FIXO}&page=${pagina}&limit=${EQUIPE_POR_PAGINA}`);
+      const itensNormalizados = Array.isArray(data) ? data : (data?.items || []);
+      setItens(itensNormalizados);
+      setTotalItens(Array.isArray(data) ? itensNormalizados.length : Number(data?.total || itensNormalizados.length));
+      setPaginaItens(Array.isArray(data) ? pagina : Number(data?.page || pagina));
     } catch {
       setErroTela('Não foi possível carregar a equipe no momento.');
     }
@@ -72,7 +80,7 @@ export default function Equipe() {
     if (!window.confirm(`Excluir "${item.nome}"? Esta ação não pode ser desfeita.`)) return;
     try {
       await axios.delete(`/api/profissionais/${item.id}`);
-      carregar();
+      carregar(paginaItens);
     } catch (err) {
       alert('Erro ao excluir: ' + err.message);
     }
@@ -111,7 +119,7 @@ export default function Equipe() {
       await axios.post('/api/profissionais', payload);
     }
     cancelarEdicao();
-    carregar();
+    carregar(paginaItens);
   };
 
   const exibirPct = (item) => {
@@ -249,7 +257,7 @@ export default function Equipe() {
       </div>
 
       <div className="ui-surface rounded-xl p-6 md:p-8">
-        <h3 className="ui-title mb-4 text-lg">Funcionários ({itens.length})</h3>
+        <h3 className="ui-title mb-4 text-lg">Funcionários ({totalItens})</h3>
         <div className="space-y-3">
           {itens.map((item) => (
             <div key={item.id}
@@ -315,6 +323,21 @@ export default function Equipe() {
             <p className="py-8 text-center text-slate-400">Nenhum funcionário cadastrado</p>
           )}
         </div>
+
+        {itens.length > 0 && (
+          <Pagination
+            page={paginaItens}
+            totalPages={Math.max(1, Math.ceil(totalItens / EQUIPE_POR_PAGINA))}
+            totalItems={totalItens}
+            pageSize={EQUIPE_POR_PAGINA}
+            itemLabel="funcionários"
+            onPageChange={(proximaPagina) => {
+              const paginaNormalizada = Math.max(proximaPagina, 1);
+              setPaginaItens(paginaNormalizada);
+              carregar(paginaNormalizada);
+            }}
+          />
+        )}
       </div>
     </div>
   );

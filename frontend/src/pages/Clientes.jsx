@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { TIPO_SALAO_FIXO } from '../config/salao';
 import Pagination from '../components/Pagination';
 
-const CLIENTES_POR_PAGINA = 8;
+const CLIENTES_POR_PAGINA = 20;
 
 export default function Clientes() {
   const [clientes, setClientes] = useState([]);
@@ -13,6 +13,7 @@ export default function Clientes() {
   const [busca, setBusca] = useState('');
   const [erro, setErro] = useState('');
   const [paginaClientes, setPaginaClientes] = useState(1);
+  const [totalClientes, setTotalClientes] = useState(0);
   const [fotoForm, setFotoForm] = useState({ tipo: 'antes', url: '', descricao: '' });
   const [form, setForm] = useState({
     nome: '',
@@ -27,28 +28,25 @@ export default function Clientes() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      carregarClientes(busca);
+      carregarClientes(paginaClientes, busca);
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [busca]);
+  }, [busca, paginaClientes]);
 
-  useEffect(() => {
-    setPaginaClientes(1);
-  }, [busca, clientes.length]);
-
-  const totalPaginasClientes = Math.max(1, Math.ceil(clientes.length / CLIENTES_POR_PAGINA));
-  const clientesPaginados = useMemo(() => {
-    const inicio = (paginaClientes - 1) * CLIENTES_POR_PAGINA;
-    return clientes.slice(inicio, inicio + CLIENTES_POR_PAGINA);
-  }, [clientes, paginaClientes]);
-
-  const carregarClientes = async (termo = '') => {
+  const carregarClientes = async (pagina = 1, termo = '') => {
     try {
       setLoading(true);
       setErro('');
-      const { data } = await axios.get(`/api/clientes?tipo_salao=${TIPO_SALAO_FIXO}&busca=${encodeURIComponent(termo)}`);
-      setClientes(data);
+      const { data } = await axios.get(
+        `/api/clientes?tipo_salao=${TIPO_SALAO_FIXO}&busca=${encodeURIComponent(termo)}&page=${pagina}&limit=${CLIENTES_POR_PAGINA}`
+      );
+      const itens = Array.isArray(data) ? data : (data?.items || []);
+      const total = Array.isArray(data) ? data.length : Number(data?.total || itens.length);
+      const paginaAtual = Array.isArray(data) ? pagina : Number(data?.page || pagina);
+      setClientes(itens);
+      setTotalClientes(total);
+      setPaginaClientes(paginaAtual);
       setLoading(false);
     } catch (err) {
       console.error('Erro ao carregar clientes:', err);
@@ -74,7 +72,7 @@ export default function Clientes() {
         historico_quimico: '',
         formulas_coloracao: '',
       });
-      carregarClientes(busca);
+      carregarClientes(1, busca);
     } catch (err) {
       alert(`Erro ao salvar cliente: ${err.message}`);
     }
@@ -84,7 +82,7 @@ export default function Clientes() {
     if (!window.confirm(`Excluir cliente "${cliente.nome}"? Esta ação não pode ser desfeita.`)) return;
     try {
       await axios.delete(`/api/clientes/${cliente.id}`);
-      carregarClientes(busca);
+      carregarClientes(paginaClientes, busca);
     } catch (err) {
       alert('Erro ao excluir: ' + err.message);
     }
@@ -148,7 +146,10 @@ export default function Clientes() {
             className="ui-input max-w-xs"
             placeholder="Buscar por nome/telefone"
             value={busca}
-            onChange={(e) => setBusca(e.target.value)}
+            onChange={(e) => {
+              setBusca(e.target.value);
+              setPaginaClientes(1);
+            }}
           />
         </div>
 
@@ -156,7 +157,7 @@ export default function Clientes() {
           {erro ? (
             <p className="py-8 text-center text-slate-400">{erro}</p>
           ) : clientes.length > 0 ? (
-            clientesPaginados.map((cliente) => (
+            clientes.map((cliente) => (
               <div key={cliente.id} className="flex items-start gap-2">
                 <button className="flex-1 rounded-xl border border-slate-300/15 bg-slate-900/50 p-4 text-left" onClick={() => abrirDetalhe(cliente)}>
                   <p className="font-semibold text-slate-100">{cliente.nome}</p>
@@ -178,12 +179,12 @@ export default function Clientes() {
 
         {!erro && clientes.length > 0 && (
           <Pagination
-            page={Math.min(paginaClientes, totalPaginasClientes)}
-            totalPages={totalPaginasClientes}
-            totalItems={clientes.length}
+            page={paginaClientes}
+            totalPages={Math.max(1, Math.ceil(totalClientes / CLIENTES_POR_PAGINA))}
+            totalItems={totalClientes}
             pageSize={CLIENTES_POR_PAGINA}
             itemLabel="clientes"
-            onPageChange={(proximaPagina) => setPaginaClientes(Math.min(Math.max(proximaPagina, 1), totalPaginasClientes))}
+            onPageChange={(proximaPagina) => setPaginaClientes(Math.max(proximaPagina, 1))}
           />
         )}
       </div>

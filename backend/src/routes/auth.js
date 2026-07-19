@@ -9,10 +9,18 @@ const {
   PERFIS_VALIDOS,
   isMasterAdminLogin,
 } = require('../middleware');
+const {
+  LOCK_MESSAGE,
+  createLoginIpLimiter,
+  getLoginBlockInfo,
+  recordLoginFailure,
+  resetLoginFailures,
+} = require('../loginProtection');
 
 const router = express.Router();
+const loginIpLimiter = createLoginIpLimiter();
 
-router.post('/login', (req, res) => {
+router.post('/login', loginIpLimiter, (req, res) => {
   const login = String(req.body?.login || '').trim().toLowerCase();
   const perfilSolicitado = String(req.body?.perfil || '').trim().toLowerCase();
   const senha = String(req.body?.senha || '').trim();
@@ -25,6 +33,11 @@ router.post('/login', (req, res) => {
     return res.status(400).json({ error: 'Senha é obrigatória' });
   }
 
+  const bloqueioAtual = getLoginBlockInfo(login);
+  if (bloqueioAtual) {
+    return res.status(429).json({ error: LOCK_MESSAGE });
+  }
+
   const autenticar = async () => {
     const usuario = await db.get(
       `SELECT id, nome, login, perfil, senha_hash, ativo, profissional_id
@@ -34,21 +47,27 @@ router.post('/login', (req, res) => {
     );
 
     if (!usuario || Number(usuario.ativo) !== 1) {
+      recordLoginFailure(login);
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
     if (!PERFIS_VALIDOS.includes(String(usuario.perfil || '').toLowerCase())) {
+      recordLoginFailure(login);
       return res.status(401).json({ error: 'Perfil inválido para autenticação' });
     }
 
     if (perfilSolicitado && perfilSolicitado !== String(usuario.perfil || '').toLowerCase()) {
+      recordLoginFailure(login);
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
     const senhaValida = await bcrypt.compare(senha, String(usuario.senha_hash || ''));
     if (!senhaValida) {
+      recordLoginFailure(login);
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
+
+    resetLoginFailures(login);
 
     const { token, expiresAt } = issueAuthToken({
       userId: usuario.id,

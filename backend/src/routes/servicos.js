@@ -2,16 +2,38 @@ const express = require('express');
 const db = require('../database');
 const { asyncHandler, validateRequired, validatePositive, normalizeBool, normalizeCommission, validateCommission } = require('../utils');
 const { requireRoles } = require('../middleware');
+const { getPaginationParams, clampPagination, formatPaginatedResponse } = require('../pagination');
 const router = express.Router();
 
 // Listar todos
 router.get('/', requireRoles(['administrador', 'recepcao', 'profissional']), asyncHandler(async (req, res) => {
   const { tipo_salao = 'feminino' } = req.query;
-  const servicos = await db.all(
-    'SELECT * FROM servicos WHERE ativo = 1 AND tipo_salao = ? ORDER BY preco DESC',
+  const pagination = getPaginationParams(req.query);
+  const total = await db.get(
+    'SELECT COUNT(*) AS total FROM servicos WHERE ativo = 1 AND tipo_salao = ?',
     [tipo_salao]
   );
-  res.json(servicos);
+
+  if (!pagination.paginated) {
+    const servicos = await db.all(
+      'SELECT * FROM servicos WHERE ativo = 1 AND tipo_salao = ? ORDER BY preco DESC',
+      [tipo_salao]
+    );
+    return res.json(servicos);
+  }
+
+  const normalized = clampPagination({
+    page: pagination.page,
+    limit: pagination.limit,
+    total: Number(total?.total || 0),
+  });
+
+  const servicos = await db.all(
+    'SELECT * FROM servicos WHERE ativo = 1 AND tipo_salao = ? ORDER BY preco DESC LIMIT ? OFFSET ?',
+    [tipo_salao, normalized.limit, normalized.offset]
+  );
+
+  return res.json(formatPaginatedResponse({ items: servicos, pagination: normalized }));
 }));
 
 // Criar novo

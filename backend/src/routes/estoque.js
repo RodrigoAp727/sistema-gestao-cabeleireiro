@@ -1,6 +1,7 @@
 ﻿const express = require('express');
 const db = require('../database');
 const { requireRoles } = require('../middleware');
+const { getPaginationParams, clampPagination, formatPaginatedResponse } = require('../pagination');
 
 const router = express.Router();
 
@@ -81,15 +82,41 @@ router.put('/insumos/servico/:servicoId', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const { tipo_salao = 'feminino' } = req.query;
+    const pagination = getPaginationParams(req.query);
+    const total = await db.get(
+      'SELECT COUNT(*) AS total FROM estoque_itens WHERE ativo = 1 AND tipo_salao = ?',
+      [tipo_salao]
+    );
+
+    if (!pagination.paginated) {
+      const itens = await db.all(
+        `SELECT *,
+                CASE WHEN quantidade <= estoque_minimo THEN 1 ELSE 0 END as precisa_repor
+         FROM estoque_itens
+         WHERE ativo = 1 AND tipo_salao = ?
+         ORDER BY precisa_repor DESC, nome`,
+        [tipo_salao]
+      );
+      return res.json(itens);
+    }
+
+    const normalized = clampPagination({
+      page: pagination.page,
+      limit: pagination.limit,
+      total: Number(total?.total || 0),
+    });
+
     const itens = await db.all(
       `SELECT *,
               CASE WHEN quantidade <= estoque_minimo THEN 1 ELSE 0 END as precisa_repor
        FROM estoque_itens
        WHERE ativo = 1 AND tipo_salao = ?
-       ORDER BY precisa_repor DESC, nome`,
-      [tipo_salao]
+       ORDER BY precisa_repor DESC, nome
+       LIMIT ? OFFSET ?`,
+      [tipo_salao, normalized.limit, normalized.offset]
     );
-    res.json(itens);
+
+    return res.json(formatPaginatedResponse({ items: itens, pagination: normalized }));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

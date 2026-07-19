@@ -3,7 +3,7 @@ import axios from 'axios';
 import { TIPO_SALAO_FIXO } from '../config/salao';
 import Pagination from '../components/Pagination';
 
-const ESTOQUE_POR_PAGINA = 8;
+const ESTOQUE_POR_PAGINA = 20;
 
 export default function Estoque() {
   const [itens, setItens] = useState([]);
@@ -15,6 +15,7 @@ export default function Estoque() {
   const [mensagemVinculos, setMensagemVinculos] = useState('');
   const [erroCarregamento, setErroCarregamento] = useState('');
   const [paginaItens, setPaginaItens] = useState(1);
+  const [totalItens, setTotalItens] = useState(0);
 
   useEffect(() => {
     if (!mensagemVinculos) return undefined;
@@ -24,28 +25,22 @@ export default function Estoque() {
   }, [mensagemVinculos]);
 
   useEffect(() => {
-    carregar();
+    carregar(1);
   }, []);
 
-  useEffect(() => {
-    setPaginaItens(1);
-  }, [itens.length]);
-
-  const totalPaginasItens = Math.max(1, Math.ceil(itens.length / ESTOQUE_POR_PAGINA));
-  const itensPaginados = useMemo(() => {
-    const inicio = (paginaItens - 1) * ESTOQUE_POR_PAGINA;
-    return itens.slice(inicio, inicio + ESTOQUE_POR_PAGINA);
-  }, [itens, paginaItens]);
-
-  const carregar = async () => {
+  const carregar = async (pagina = paginaItens) => {
     try {
       setErroCarregamento('');
       const [resItens, resServicos, resVinculos] = await Promise.all([
-        axios.get(`/api/estoque?tipo_salao=${TIPO_SALAO_FIXO}`),
+        axios.get(`/api/estoque?tipo_salao=${TIPO_SALAO_FIXO}&page=${pagina}&limit=${ESTOQUE_POR_PAGINA}`),
         axios.get(`/api/servicos?tipo_salao=${TIPO_SALAO_FIXO}`),
         axios.get(`/api/estoque/insumos?tipo_salao=${TIPO_SALAO_FIXO}`),
       ]);
-      setItens(resItens.data || []);
+      const payloadItens = resItens.data;
+      const itensNormalizados = Array.isArray(payloadItens) ? payloadItens : (payloadItens?.items || []);
+      setItens(itensNormalizados);
+      setTotalItens(Array.isArray(payloadItens) ? itensNormalizados.length : Number(payloadItens?.total || itensNormalizados.length));
+      setPaginaItens(Array.isArray(payloadItens) ? pagina : Number(payloadItens?.page || pagina));
       setServicos(resServicos.data || []);
       setVinculos(resVinculos.data || []);
     } catch (err) {
@@ -58,7 +53,7 @@ export default function Estoque() {
     try {
       await axios.post('/api/estoque', { ...form, tipo_salao: TIPO_SALAO_FIXO });
       setForm({ nome: '', categoria: 'uso_interno', quantidade: '', estoque_minimo: '', validade: '' });
-      carregar();
+      carregar(paginaItens);
     } catch (err) {
       alert(err?.response?.data?.error || 'Erro ao salvar item');
     }
@@ -67,7 +62,7 @@ export default function Estoque() {
   const mover = async (id, tipo) => {
     try {
       await axios.patch(`/api/estoque/${id}/movimento`, { tipo, quantidade: 1 });
-      carregar();
+      carregar(paginaItens);
     } catch (err) {
       alert(err?.response?.data?.error || 'Erro ao registrar movimento');
     }
@@ -77,7 +72,7 @@ export default function Estoque() {
     if (!window.confirm(`Excluir "${item.nome}"? Esta ação não pode ser desfeita.`)) return;
     try {
       await axios.delete(`/api/estoque/${item.id}`);
-      carregar();
+      carregar(paginaItens);
     } catch (err) {
       alert(err?.response?.data?.error || 'Erro ao excluir item');
     }
@@ -179,7 +174,7 @@ export default function Estoque() {
         <div className="max-h-[420px] space-y-3 overflow-y-auto">
           {erroCarregamento ? (
             <p className="py-8 text-center text-slate-400">{erroCarregamento}</p>
-          ) : itensPaginados.map((item) => (
+          ) : itens.map((item) => (
             <div key={item.id} className="rounded-xl border border-slate-300/15 bg-slate-900/50 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-semibold text-slate-100">{item.nome}</p>
@@ -198,12 +193,16 @@ export default function Estoque() {
 
         {!erroCarregamento && itens.length > 0 && (
           <Pagination
-            page={Math.min(paginaItens, totalPaginasItens)}
-            totalPages={totalPaginasItens}
-            totalItems={itens.length}
+            page={paginaItens}
+            totalPages={Math.max(1, Math.ceil(totalItens / ESTOQUE_POR_PAGINA))}
+            totalItems={totalItens}
             pageSize={ESTOQUE_POR_PAGINA}
             itemLabel="itens"
-            onPageChange={(proximaPagina) => setPaginaItens(Math.min(Math.max(proximaPagina, 1), totalPaginasItens))}
+            onPageChange={(proximaPagina) => {
+              const paginaNormalizada = Math.max(proximaPagina, 1);
+              setPaginaItens(paginaNormalizada);
+              carregar(paginaNormalizada);
+            }}
           />
         )}
       </div>
