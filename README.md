@@ -159,6 +159,8 @@ npm run dev -- --port 5174
 # Rodando em http://localhost:5174
 ```
 
+Para deploy real e configuração segura das variáveis sensíveis, veja [docs/DEPLOY.md](docs/DEPLOY.md).
+
 ---
 
 ## 🔒 Controle de Acesso e Segurança
