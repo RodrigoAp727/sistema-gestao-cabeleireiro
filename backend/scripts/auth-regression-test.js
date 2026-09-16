@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-const BASE_URL = process.env.AUTH_TEST_BASE_URL || 'http://localhost:3010';
+const BASE_URL = process.env.AUTH_TEST_BASE_URL || 'http://127.0.0.1:3001';
 
 class HttpClient {
   constructor(baseUrl) {

@@ -102,11 +102,11 @@ router.post('/lancamentos', async (req, res) => {
     const { tipo, descricao, valor, vencimento, status = 'aberto', tipo_salao = 'feminino' } = req.body;
     
     if (!tipo || !['entrada', 'saida', 'despesa', 'conta_pagar'].includes(tipo)) {
-      return res.status(400).json({ error: 'Tipo de lanÃ§amento invÃ¡lido' });
+      return res.status(400).json({ error: 'Tipo de lançamento inválido' });
     }
     
     if (!descricao || descricao.trim() === '') {
-      return res.status(400).json({ error: 'DescriÃ§Ã£o Ã© obrigatÃ³ria' });
+      return res.status(400).json({ error: 'Descrição é obrigatória' });
     }
     
     if (!valor || Number(valor) <= 0) {
@@ -118,7 +118,7 @@ router.post('/lancamentos', async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?)`,
       [tipo, descricao, Number(valor || 0), vencimento || null, status, tipo_salao]
     );
-    res.status(201).json({ id: result.id, message: 'LanÃ§amento registrado' });
+    res.status(201).json({ id: result.id, message: 'Lançamento registrado' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -127,13 +127,13 @@ router.post('/lancamentos', async (req, res) => {
 router.delete('/lancamentos/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!id || id <= 0) return res.status(400).json({ error: 'ID invÃ¡lido' });
+    if (!id || id <= 0) return res.status(400).json({ error: 'ID inválido' });
     
     const lancamento = await db.get('SELECT id FROM caixa_lancamentos WHERE id = ?', [id]);
-    if (!lancamento) return res.status(404).json({ error: 'LanÃ§amento nÃ£o encontrado' });
+    if (!lancamento) return res.status(404).json({ error: 'Lançamento não encontrado' });
     
     await db.run('DELETE FROM caixa_lancamentos WHERE id = ?', [id]);
-    res.json({ ok: true, message: 'LanÃ§amento excluÃ­do' });
+    res.json({ ok: true, message: 'Lançamento excluído' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -149,7 +149,7 @@ router.post('/fechamento', async (req, res) => {
       [tipo_salao]
     );
     res.json({
-      message: 'Fechamento diÃ¡rio calculado',
+      message: 'Fechamento diário calculado',
       data: getDataLocalISO(),
       tipo_salao,
       total: Number(resumo?.total || 0),

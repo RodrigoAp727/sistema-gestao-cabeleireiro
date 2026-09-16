@@ -7,7 +7,7 @@ const router = express.Router();
 const NOMES_MESES = [
   'Janeiro',
   'Fevereiro',
-  'MarÃ§o',
+  'Março',
   'Abril',
   'Maio',
   'Junho',
@@ -19,7 +19,7 @@ const NOMES_MESES = [
   'Dezembro',
 ];
 
-// Busca configuraÃ§Ãµes do salÃ£o (percentuais de comissÃ£o) do banco de dados
+// Busca configurações do salão (percentuais de comissão) do banco de dados
 const getConfigSalon = async (tipoSalao) => {
   try {
     const cfgSalao = await db.get(`SELECT valor FROM configuracoes WHERE tipo_salao = ? AND chave = 'comissao_salao_fornece'`, [tipoSalao]);
@@ -30,7 +30,7 @@ const getConfigSalon = async (tipoSalao) => {
       profissionalFornece: Number(cfgProfissional?.valor ?? 55),
     };
   } catch (err) {
-    console.error('Erro ao buscar config de salÃ£o:', err);
+    console.error('Erro ao buscar config de salão:', err);
     return { salaoFornece: 35, profissionalFornece: 55 }; // Fallback
   }
 };
@@ -85,7 +85,7 @@ router.get('/dia', async (req, res) => {
     const hoje = getDataLocalISO();
     const { tipo_salao = 'feminino' } = req.query;
     
-    // Busca configuraÃ§Ãµes do salÃ£o
+    // Busca configurações do salão
     const config = await getConfigSalon(tipo_salao);
     
     // Total do dia
@@ -95,7 +95,7 @@ router.get('/dia', async (req, res) => {
       WHERE DATE(data_hora) = ? AND tipo_salao = ? AND status = 'concluido'
     `, [hoje, tipo_salao]);
 
-    // Por serviÃ§o
+    // Por serviço
     const porServico = await db.all(`
       SELECT s.nome, SUM(a.preco) as total, COUNT(*) as quantidade
       FROM agendamentos a
@@ -139,7 +139,7 @@ router.get('/mes', async (req, res) => {
     const mes = `${ano}-${mesNumero}`;
     const { tipo_salao = 'feminino' } = req.query;
 
-    // Busca configuraÃ§Ãµes do salÃ£o
+    // Busca configurações do salão
     const config = await getConfigSalon(tipo_salao);
 
     const total = await db.get(`
@@ -197,7 +197,7 @@ router.get('/anual', async (req, res) => {
     const ano = String(req.query.ano || new Date().getFullYear());
     const { tipo_salao = 'feminino' } = req.query;
 
-    // Busca configuraÃ§Ãµes do salÃ£o
+    // Busca configurações do salão
     const config = await getConfigSalon(tipo_salao);
 
     const resumoAnual = await db.get(`

@@ -73,7 +73,8 @@ const getTokenFromRequest = (req) => {
   }
 
   const cookies = parseCookies(req.headers.cookie || '');
-  return cookies[AUTH_COOKIE_NAME] || null;
+  const token = cookies[AUTH_COOKIE_NAME] || null;
+  return typeof token === 'string' ? token.trim() : null;
 };
 
 const issueAuthToken = ({ userId, perfil, nome, login, profissionalId = null }) => {

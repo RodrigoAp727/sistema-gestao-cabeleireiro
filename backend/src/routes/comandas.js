@@ -114,7 +114,7 @@ router.post('/', async (req, res) => {
     } = req.body;
 
     if (!cliente_nome || cliente_nome.trim() === '') {
-      return res.status(400).json({ error: 'Nome do cliente Ã© obrigatÃ³rio' });
+      return res.status(400).json({ error: 'Nome do cliente é obrigatório' });
     }
 
     validateRequired(cliente_nome, 'Nome do cliente');
@@ -226,14 +226,14 @@ router.post('/:id/pagamentos', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!id || id <= 0) return res.status(400).json({ error: 'ID invÃ¡lido' });
+    if (!id || id <= 0) return res.status(400).json({ error: 'ID inválido' });
     
     const comanda = await db.get('SELECT id FROM comandas WHERE id = ? AND ativo = 1', [id]);
-    if (!comanda) return res.status(404).json({ error: 'Comanda nÃ£o encontrada' });
+    if (!comanda) return res.status(404).json({ error: 'Comanda não encontrada' });
     
-    // Soft delete - marca como inativa ao invÃ©s de apagar
+    // Soft delete - marca como inativa ao invés de apagar
     await db.run('UPDATE comandas SET ativo = 0 WHERE id = ?', [id]);
-    res.json({ ok: true, message: 'Comanda excluÃ­da' });
+    res.json({ ok: true, message: 'Comanda excluída' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

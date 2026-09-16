@@ -13,8 +13,8 @@ echo.
 echo ✅ Instalação concluída!
 echo.
 echo Para iniciar o sistema:
-echo 1. Terminal 1 - Backend: cd backend && npm run dev
-echo 2. Terminal 2 - Frontend: cd frontend && npm run dev
+echo 1. Execute start-local.bat
+
 echo.
-echo Acesse: http://localhost:3000
+echo Acesse: http://localhost:5175
 pause

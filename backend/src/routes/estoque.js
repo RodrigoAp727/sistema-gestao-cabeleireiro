@@ -127,15 +127,15 @@ router.post('/', async (req, res) => {
     const { nome, categoria, quantidade, estoque_minimo, validade, custo_unitario, tipo_salao = 'feminino' } = req.body;
     
     if (!nome || nome.trim() === '') {
-      return res.status(400).json({ error: 'Nome do item Ã© obrigatÃ³rio' });
+      return res.status(400).json({ error: 'Nome do item é obrigatório' });
     }
     
     if (quantidade === undefined || Number(quantidade) < 0) {
-      return res.status(400).json({ error: 'Quantidade nÃ£o pode ser negativa' });
+      return res.status(400).json({ error: 'Quantidade não pode ser negativa' });
     }
     
     if (estoque_minimo === undefined || Number(estoque_minimo) < 0) {
-      return res.status(400).json({ error: 'Estoque mÃ­nimo nÃ£o pode ser negativo' });
+      return res.status(400).json({ error: 'Estoque mínimo não pode ser negativo' });
     }
     
     const result = await db.run(
@@ -153,7 +153,7 @@ router.patch('/:id/movimento', async (req, res) => {
   try {
     const { tipo = 'saida', quantidade = 0 } = req.body;
     const item = await db.get('SELECT quantidade FROM estoque_itens WHERE id = ?', [req.params.id]);
-    if (!item) return res.status(404).json({ error: 'Item nÃ£o encontrado' });
+    if (!item) return res.status(404).json({ error: 'Item não encontrado' });
 
     const atual = Number(item.quantidade || 0);
     const delta = Number(quantidade || 0);
@@ -169,7 +169,7 @@ router.patch('/:id/movimento', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     await db.run('UPDATE estoque_itens SET ativo = 0 WHERE id = ?', [req.params.id]);
-    res.json({ message: 'Item excluÃ­do' });
+    res.json({ message: 'Item excluído' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

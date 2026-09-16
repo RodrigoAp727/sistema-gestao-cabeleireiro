@@ -94,6 +94,11 @@ router.post('/', requireRoles(['administrador', 'recepcao']), asyncHandler(async
 }));
 
 router.put('/:id', requireRoles(['administrador', 'recepcao']), asyncHandler(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido' });
+  }
+
   const {
     nome,
     telefone,
@@ -109,6 +114,11 @@ router.put('/:id', requireRoles(['administrador', 'recepcao']), asyncHandler(asy
 
   validateRequired(nome, 'Nome do cliente');
   validateMinLength(nome, 3, 'Nome do cliente');
+
+  const clienteExistente = await db.get('SELECT id FROM clientes WHERE id = ?', [id]);
+  if (!clienteExistente) {
+    return res.status(404).json({ error: 'Cliente não encontrado' });
+  }
 
   await db.run(
     `UPDATE clientes
@@ -126,7 +136,7 @@ router.put('/:id', requireRoles(['administrador', 'recepcao']), asyncHandler(asy
       formulas_coloracao || null,
       Number(faltas || 0),
       Number(cancelamentos || 0),
-      req.params.id,
+      id,
     ]
   );
 
@@ -162,7 +172,17 @@ router.get('/:id/detalhe', requireRoles(['administrador', 'recepcao', 'profissio
 
 // Excluir cliente
 router.delete('/:id', requireRoles(['administrador', 'recepcao']), asyncHandler(async (req, res) => {
-  await db.run('DELETE FROM clientes WHERE id = ?', [req.params.id]);
+  const id = Number(req.params.id);
+  if (!id || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido' });
+  }
+
+  const clienteExistente = await db.get('SELECT id FROM clientes WHERE id = ?', [id]);
+  if (!clienteExistente) {
+    return res.status(404).json({ error: 'Cliente não encontrado' });
+  }
+
+  await db.run('DELETE FROM clientes WHERE id = ?', [id]);
   res.json({ message: 'Cliente excluído' });
 }));
 

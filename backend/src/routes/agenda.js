@@ -20,7 +20,7 @@ const parseReferenciaLocal = (referencia) => {
   const somenteData = String(referencia).match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (somenteData) {
     const [, ano, mes, dia] = somenteData;
-    // Meio-dia local evita deslocamentos por fuso quando a referÃªncia vem sem horÃ¡rio
+    // Meio-dia local evita deslocamentos por fuso quando a referência vem sem horário
     return new Date(Number(ano), Number(mes) - 1, Number(dia), 12, 0, 0, 0);
   }
 
@@ -107,9 +107,11 @@ router.post('/', requireRoles(['administrador', 'recepcao']), async (req, res) =
       data_hora,
       tipo_salao = 'feminino',
     } = req.body;
+
+    const tipoSalaoNormalizado = String(tipo_salao || 'feminino').trim() || 'feminino';
     
     if (!cliente_nome || cliente_nome.trim() === '') {
-      return res.status(400).json({ error: 'Nome do cliente Ã© obrigatÃ³rio' });
+      return res.status(400).json({ error: 'Nome do cliente é obrigatório' });
     }
     
     const itensNormalizados = [];
@@ -160,11 +162,11 @@ router.post('/', requireRoles(['administrador', 'recepcao']), async (req, res) =
       `SELECT id, nome, preco
        FROM servicos
        WHERE tipo_salao = ? AND ativo = 1 AND id IN (${placeholders})`,
-      [tipo_salao, ...servicosIdsUnicos]
+      [tipoSalaoNormalizado, ...servicosIdsUnicos]
     );
 
     if (!servicosSelecionados || servicosSelecionados.length === 0) {
-      return res.status(400).json({ error: 'Nenhum serviÃ§o vÃ¡lido selecionado' });
+      return res.status(400).json({ error: 'Nenhum serviço válido selecionado' });
     }
 
     const profPlaceholders = profissionaisIdsUnicos.map(() => '?').join(',');
@@ -172,11 +174,11 @@ router.post('/', requireRoles(['administrador', 'recepcao']), async (req, res) =
       `SELECT id, nome
        FROM profissionais
        WHERE tipo_salao = ? AND ativo = 1 AND id IN (${profPlaceholders})`,
-      [tipo_salao, ...profissionaisIdsUnicos]
+      [tipoSalaoNormalizado, ...profissionaisIdsUnicos]
     );
 
     if (!profissionaisSelecionados || profissionaisSelecionados.length !== profissionaisIdsUnicos.length) {
-      return res.status(400).json({ error: 'Profissional invÃ¡lido para este salÃ£o' });
+      return res.status(400).json({ error: 'Profissional inválido para este salão' });
     }
 
     const mapaProfissionais = new Map(profissionaisSelecionados.map((p) => [Number(p.id), p.nome]));
@@ -187,13 +189,13 @@ router.post('/', requireRoles(['administrador', 'recepcao']), async (req, res) =
       const conflito = await db.get(
         `SELECT id FROM agendamentos
          WHERE profissional_id = ? AND data_hora = ? AND tipo_salao = ? AND status != 'cancelado'`,
-        [pid, dataHoraItem, tipo_salao]
+        [pid, dataHoraItem, tipoSalaoNormalizado]
       );
 
       const bloqueio = await db.get(
         `SELECT id FROM agenda_bloqueios
          WHERE profissional_id = ? AND tipo_salao = ? AND ? BETWEEN inicio AND fim`,
-        [pid, tipo_salao, dataHoraItem]
+        [pid, tipoSalaoNormalizado, dataHoraItem]
       );
 
       if (conflito || bloqueio) {
@@ -236,7 +238,7 @@ router.post('/', requireRoles(['administrador', 'recepcao']), async (req, res) =
       const result = await db.run(
         `INSERT INTO agendamentos (cliente_nome, cliente_id, profissional_id, servico_id, data_hora, tipo_salao, preco, servicos_json)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [cliente_nome, cliente_id, pid, servicoPrincipalId, dataHoraGrupo, tipo_salao, precoTotal, servicosJson]
+        [cliente_nome, cliente_id, pid, servicoPrincipalId, dataHoraGrupo, tipoSalaoNormalizado, precoTotal, servicosJson]
       );
       idsCriados.push(result.id);
     }
@@ -268,16 +270,16 @@ router.patch('/:id/confirmar', requireRoles(['administrador', 'recepcao']), asyn
 router.patch('/:id/concluir', requireRoles(['administrador', 'recepcao']), async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!id || id <= 0) return res.status(400).json({ error: 'ID invÃ¡lido' });
+    if (!id || id <= 0) return res.status(400).json({ error: 'ID inválido' });
 
     const agendamento = await db.get('SELECT id, status FROM agendamentos WHERE id = ?', [id]);
-    if (!agendamento) return res.status(404).json({ error: 'Agendamento nÃ£o encontrado' });
+    if (!agendamento) return res.status(404).json({ error: 'Agendamento não encontrado' });
     if (agendamento.status === 'cancelado') {
-      return res.status(400).json({ error: 'NÃ£o Ã© possÃ­vel concluir um agendamento cancelado' });
+      return res.status(400).json({ error: 'Não é possível concluir um agendamento cancelado' });
     }
 
     await db.run('UPDATE agendamentos SET status = ? WHERE id = ?', ['concluido', id]);
-    res.json({ ok: true, message: 'Atendimento concluÃ­do' });
+    res.json({ ok: true, message: 'Atendimento concluído' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -301,7 +303,7 @@ router.patch('/:id/remarcar', requireRoles(['administrador', 'recepcao']), async
   try {
     const { data_hora } = req.body;
     const agendamento = await db.get('SELECT profissional_id, tipo_salao FROM agendamentos WHERE id = ?', [req.params.id]);
-    if (!agendamento) return res.status(404).json({ error: 'Agendamento nÃ£o encontrado' });
+    if (!agendamento) return res.status(404).json({ error: 'Agendamento não encontrado' });
 
     const conflito = await db.get(
       `SELECT id FROM agendamentos
@@ -320,7 +322,7 @@ router.patch('/:id/remarcar', requireRoles(['administrador', 'recepcao']), async
   }
 });
 
-// Bloquear horÃ¡rio
+// Bloquear horário
 router.post('/bloqueios', requireRoles(['administrador', 'recepcao']), async (req, res) => {
   try {
     const { profissional_id, inicio, fim, motivo, tipo_salao = 'feminino' } = req.body;
@@ -330,7 +332,7 @@ router.post('/bloqueios', requireRoles(['administrador', 'recepcao']), async (re
       [profissional_id, inicio, fim, motivo || null, tipo_salao]
     );
 
-    res.status(201).json({ id: result.id, message: 'HorÃ¡rio bloqueado' });
+    res.status(201).json({ id: result.id, message: 'Horário bloqueado' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -411,7 +413,7 @@ router.post('/lista-espera', requireRoles(['administrador', 'recepcao']), async 
        VALUES (?, ?, ?, ?, ?, ?)`,
       [cliente_nome, telefone || null, profissional_id || null, servico_id || null, observacao || null, tipo_salao]
     );
-    res.status(201).json({ id: result.id, message: 'Cliente adicionado Ã  lista de espera' });
+    res.status(201).json({ id: result.id, message: 'Cliente adicionado à lista de espera' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -421,13 +423,13 @@ router.post('/lista-espera', requireRoles(['administrador', 'recepcao']), async 
 router.delete('/bloqueios/:id', requireRoles(['administrador', 'recepcao']), async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!id || id <= 0) return res.status(400).json({ error: 'ID invÃ¡lido' });
+    if (!id || id <= 0) return res.status(400).json({ error: 'ID inválido' });
     
     const bloqueio = await db.get('SELECT id FROM agenda_bloqueios WHERE id = ?', [id]);
-    if (!bloqueio) return res.status(404).json({ error: 'Bloqueio nÃ£o encontrado' });
+    if (!bloqueio) return res.status(404).json({ error: 'Bloqueio não encontrado' });
     
     await db.run('DELETE FROM agenda_bloqueios WHERE id = ?', [id]);
-    res.json({ ok: true, message: 'Bloqueio excluÃ­do' });
+    res.json({ ok: true, message: 'Bloqueio excluído' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -437,10 +439,10 @@ router.delete('/bloqueios/:id', requireRoles(['administrador', 'recepcao']), asy
 router.delete('/lista-espera/:id', requireRoles(['administrador', 'recepcao']), async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!id || id <= 0) return res.status(400).json({ error: 'ID invÃ¡lido' });
+    if (!id || id <= 0) return res.status(400).json({ error: 'ID inválido' });
     
     const item = await db.get('SELECT id FROM lista_espera WHERE id = ?', [id]);
-    if (!item) return res.status(404).json({ error: 'Item nÃ£o encontrado' });
+    if (!item) return res.status(404).json({ error: 'Item não encontrado' });
     
     await db.run('DELETE FROM lista_espera WHERE id = ?', [id]);
     res.json({ ok: true, message: 'Item removido da lista de espera' });
@@ -453,13 +455,13 @@ router.delete('/lista-espera/:id', requireRoles(['administrador', 'recepcao']), 
 router.delete('/:id', requireRoles(['administrador', 'recepcao']), async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!id || id <= 0) return res.status(400).json({ error: 'ID invÃ¡lido' });
+    if (!id || id <= 0) return res.status(400).json({ error: 'ID inválido' });
     
     const agendamento = await db.get('SELECT id FROM agendamentos WHERE id = ?', [id]);
-    if (!agendamento) return res.status(404).json({ error: 'Agendamento nÃ£o encontrado' });
+    if (!agendamento) return res.status(404).json({ error: 'Agendamento não encontrado' });
     
     await db.run('DELETE FROM agendamentos WHERE id = ?', [id]);
-    res.json({ ok: true, message: 'Agendamento excluÃ­do' });
+    res.json({ ok: true, message: 'Agendamento excluído' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

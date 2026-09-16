@@ -57,7 +57,7 @@ router.post('/', requireRoles(['administrador']), asyncHandler(async (req, res) 
 
   const comissaoNormalizada = normalizeCommission(comissao_percentual);
   if (!validateCommission(comissaoNormalizada)) {
-    throw new Error('ComissÃ£o deve estar entre 0 e 100%');
+    throw new Error('Comissão deve estar entre 0 e 100%');
   }
 
   const result = await db.run(
@@ -126,7 +126,7 @@ router.put('/:id', requireRoles(['administrador']), asyncHandler(async (req, res
 // Excluir (soft delete)
 router.delete('/:id', requireRoles(['administrador']), asyncHandler(async (req, res) => {
   await db.run('UPDATE profissionais SET ativo = 0 WHERE id = ?', [req.params.id]);
-  res.json({ ok: true, message: 'Profissional excluÃ­do' });
+  res.json({ ok: true, message: 'Profissional excluído' });
 }));
 
 module.exports = router;

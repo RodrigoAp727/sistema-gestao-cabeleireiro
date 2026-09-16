@@ -1,9 +1,9 @@
 const rateLimit = require('express-rate-limit');
 
-const DEFAULT_MAX_FAILED_ATTEMPTS = Number(process.env.AUTH_LOGIN_MAX_ATTEMPTS || 5);
-const DEFAULT_LOCK_WINDOW_SECONDS = Number(process.env.AUTH_LOGIN_LOCK_WINDOW_SECONDS || 15 * 60);
+const DEFAULT_MAX_FAILED_ATTEMPTS = Number(process.env.AUTH_LOGIN_MAX_ATTEMPTS || 8);
+const DEFAULT_LOCK_WINDOW_SECONDS = Number(process.env.AUTH_LOGIN_LOCK_WINDOW_SECONDS || 5 * 60);
 const DEFAULT_IP_WINDOW_MINUTES = Number(process.env.AUTH_LOGIN_IP_WINDOW_MINUTES || 15);
-const DEFAULT_IP_MAX_REQUESTS = Number(process.env.AUTH_LOGIN_IP_MAX_REQUESTS || 20);
+const DEFAULT_IP_MAX_REQUESTS = Number(process.env.AUTH_LOGIN_IP_MAX_REQUESTS || 60);
 const LOCK_MESSAGE = 'Muitas tentativas de login. Tente novamente em alguns minutos.';
 const ATTEMPT_RETENTION_SECONDS = Math.max(DEFAULT_LOCK_WINDOW_SECONDS * 2, 60 * 60);
 
