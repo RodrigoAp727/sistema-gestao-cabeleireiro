@@ -1,4 +1,4 @@
-# �‍♂️ Sistema de Gestão para Barbearias e Salões
+# 💈 Sistema de Gestão para Barbearias e Salões
 
 **Plataforma profissional e completa de gestão para barbearias, salões e estúdios de beleza**
 
